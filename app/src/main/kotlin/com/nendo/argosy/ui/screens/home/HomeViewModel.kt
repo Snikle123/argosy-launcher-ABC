@@ -668,7 +668,7 @@ class HomeViewModel @Inject constructor(
                 prefs.secondaryHomeApps.sortedBy { it.title.lowercase() }
             } else {
                 prefs.secondaryHomeApps
-            },
+            }
         }
                 customGrid.applyConfig(
                     autoFit = prefs.homeLayout.customGrid.autoFit,
