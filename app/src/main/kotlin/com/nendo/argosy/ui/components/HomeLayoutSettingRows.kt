@@ -130,6 +130,8 @@ fun adjustHomeLayoutField(
             settings.copy(carousel = settings.carousel.copy(focusPosition = cycle(settings.carousel.focusPosition, direction)))
         HomeLayoutSettingField.INVERTED ->
             settings.copy(carousel = settings.carousel.copy(inverted = direction > 0))
+         HomeLayoutSettingField.ALPHABETICAL_SORT ->
+    settings.copy(carousel = settings.carousel.copy(alphabeticalSort = direction > 0))   
         HomeLayoutSettingField.RESTING_SCALE ->
             settings.copy(
                 carousel = settings.carousel.copy(
