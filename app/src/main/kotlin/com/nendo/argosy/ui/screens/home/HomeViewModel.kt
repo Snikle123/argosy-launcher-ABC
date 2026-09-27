@@ -664,8 +664,12 @@ class HomeViewModel @Inject constructor(
                         autoGridConfig = prefs.homeLayout.autoGrid,
                         customGridConfig = prefs.homeLayout.customGrid,
                         layoutKind = prefs.homeLayout.selected,
-                        homeApps = if (prefs.homeLayout.carousel.alphabeticalSort) prefs.secondaryHomeApps.sortedBy { it.title.lowercase() } else prefs.secondaryHomeApps,
-                }
+                        homeApps = if (prefs.homeLayout.carousel.alphabeticalSort) {
+                prefs.secondaryHomeApps.sortedBy { it.title.lowercase() }
+            } else {
+                prefs.secondaryHomeApps
+            },
+        }
                 customGrid.applyConfig(
                     autoFit = prefs.homeLayout.customGrid.autoFit,
                     storedPages = prefs.homeLayout.customGrid.pageCount
