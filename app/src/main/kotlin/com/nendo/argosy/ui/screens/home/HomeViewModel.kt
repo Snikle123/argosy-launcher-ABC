@@ -664,7 +664,7 @@ class HomeViewModel @Inject constructor(
                         autoGridConfig = prefs.homeLayout.autoGrid,
                         customGridConfig = prefs.homeLayout.customGrid,
                         layoutKind = prefs.homeLayout.selected,
-                        homeApps = prefs.secondaryHomeApps.toList()
+                        homeApps = if (prefs.homeLayout.carousel.alphabeticalSort) prefs.secondaryHomeApps.sortedBy { it.title.lowercase() }.toList() else prefs.secondaryHomeApps.toList(),
                     )
                 }
                 customGrid.applyConfig(
