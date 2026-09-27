@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.Color
 object ColorTokens {
     object Scheme {
         object Dark {
-            val primary = Color(0xFF40C6D6)
+            val primary = Color(0xFF7C3AED)
             val secondary = Color(0xFF26A69A)
             val surface = Color(0xFF13141A)
             val surfaceVariant = Color(0xFF1C1E26)
