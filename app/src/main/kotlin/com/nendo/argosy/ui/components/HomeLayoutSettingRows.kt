@@ -348,7 +348,7 @@ fun HomeLayoutSettingRow(
             onToggle = { onToggle() }
         )
         HomeLayoutSettingField.ALPHABETICAL_SORT -> SwitchPreference(
-            title = stringResource(R.string.ui_home_layout_alphabetical_sort),
+            title = "Alphabetical Sort",
             isEnabled = settings.carousel.alphabeticalSort,
             isFocused = isFocused,
             onToggle = { onToggle() }
