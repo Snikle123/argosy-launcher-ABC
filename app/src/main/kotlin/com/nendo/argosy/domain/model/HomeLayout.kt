@@ -31,6 +31,7 @@ data class CarouselConfig(
     val rowAlignment: HomeRowAlignment = HomeRowAlignment.BOTTOM,
     val focusPosition: HomeFocusPosition = HomeFocusPosition.LEADING,
     val inverted: Boolean = false,
+    val alphabeticalSort: Boolean = false,
     val restingScale: Float = 0.5f,
     val neighbourPush: Boolean = true,
     val showPlatformBadge: Boolean = true,
@@ -144,6 +145,7 @@ data class HomeLayoutSettings(
                 put(KEY_ROW_ALIGNMENT, carousel.rowAlignment.name)
                 put(KEY_FOCUS_POSITION, carousel.focusPosition.name)
                 put(KEY_INVERTED, carousel.inverted)
+                put(KEY_ALPHABETICAL_SORT, carousel.alphabeticalSort)
                 put(KEY_RESTING_SCALE, carousel.restingScale.toDouble())
                 put(KEY_NEIGHBOUR_PUSH, carousel.neighbourPush)
                 put(KEY_PLATFORM_BADGE, carousel.showPlatformBadge)
@@ -235,6 +237,8 @@ data class HomeLayoutSettings(
                     ),
                     inverted = carousel?.optBoolean(KEY_INVERTED, defaults.carousel.inverted)
                         ?: defaults.carousel.inverted,
+                    alphabeticalSort = carousel?.optBoolean(KEY_ALPHABETICAL_SORT, defaults.carousel.alphabeticalSort)
+        ?: defaults.carousel.alphabeticalSort,
                     restingScale = carousel?.optDouble(KEY_RESTING_SCALE)?.toFloat()
                         ?.takeIf { it.isFinite() && it > 0f }
                         ?.coerceIn(MIN_RESTING_SCALE, 1f) ?: defaults.carousel.restingScale,
