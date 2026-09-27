@@ -345,6 +345,12 @@ fun HomeLayoutSettingRow(
             isFocused = isFocused,
             onToggle = { onToggle() }
         )
+        HomeLayoutSettingField.ALPHABETICAL_SORT -> SwitchPreference(
+            title = stringResource(R.string.ui_home_layout_alphabetical_sort),
+            isEnabled = settings.carousel.alphabeticalSort,
+            isFocused = isFocused,
+            onToggle = { onToggle() }
+        )
         HomeLayoutSettingField.RESTING_SCALE -> SliderPreference(
             title = stringResource(R.string.ui_home_layout_resting_scale),
             value = percentOf(settings.carousel.restingScale),
