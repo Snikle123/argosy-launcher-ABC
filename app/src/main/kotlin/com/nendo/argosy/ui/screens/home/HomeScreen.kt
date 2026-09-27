@@ -886,28 +886,7 @@ fun HomeScreen(
                             )
                         }
                         else -> {
-                            AbcCarouselStrip(
-                                selectedLetter = selectedAbcLetter,
-                                onLetterSelected = { letter ->
-                                    selectedAbcLetter = letter
-                                    val total = uiState.currentItems.size
-                                    if (total > 0) {
-                                        val alphabet = ('A'..'Z').toList()
-                                        val idx = alphabet.indexOf(letter.firstOrNull()?.uppercaseChar() ?: 'A')
-                                        val jumpTo = if (letter == "#") 0 else if (idx >= 0) (idx * total / 26).coerceIn(0, total - 1) else 0
-                                        scope.launch {
-                                            viewModel.setFocusIndex(jumpTo)
-                                            listState.animateScrollToItem(
-                                                index = jumpTo,
-                                                scrollOffset = CarouselAnchor.START.snapOffsetPx
-                                            )
-                                        }
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                            )
+                          
                             CarouselRail(
                                 items = rememberHomeCarouselItems(
                                     items = uiState.currentItems,
