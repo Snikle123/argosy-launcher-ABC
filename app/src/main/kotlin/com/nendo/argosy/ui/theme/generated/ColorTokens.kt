@@ -22,7 +22,7 @@ object ColorTokens {
             val outlineVariant = Color(0x0FFFFFFF)
         }
         object Light {
-            val primary = Color(0xFF007C91)
+            val primary = Color(0xFF7C3AED) 
             val secondary = Color(0xFF00766C)
             val surface = Color(0xFFF3F4F8)
             val surfaceVariant = Color(0xFFE9EBF0)
@@ -34,10 +34,10 @@ object ColorTokens {
         }
         object DebugOverrides {
             object Dark {
-                val primary = Color(0xFFFF7043)
+                val primary = Color(0xFF7C3AED) 
             }
             object Light {
-                val primary = Color(0xFFC63F17)
+                val primary = Color(0xFF7C3AED) 
             }
         }
     }
