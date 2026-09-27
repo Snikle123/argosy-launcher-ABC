@@ -121,9 +121,7 @@ import com.nendo.argosy.ui.components.CarouselItem
 import com.nendo.argosy.ui.components.CarouselMetrics
 import com.nendo.argosy.ui.components.CarouselOverrides
 import com.nendo.argosy.ui.components.CarouselRail
-// --- Argosy-Launcher-ABC A-Z - Owner david.elkins.71 ---
 import com.nendo.argosy.ui.components.AbcCarouselStrip
-import com.nendo.argosy.ui.components.AbcCarouselHelper
 import kotlinx.coroutines.launch
 import com.nendo.argosy.ui.components.HomeAutoGrid
 import com.nendo.argosy.ui.components.HomeCustomGridPage
@@ -162,7 +160,6 @@ import com.nendo.argosy.ui.theme.LocalUiScale
 import com.nendo.argosy.ui.theme.LocalLauncherTheme
 import com.nendo.argosy.ui.theme.Motion
 import com.nendo.argosy.ui.theme.generated.ColorTokens
-import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -190,7 +187,6 @@ fun HomeScreen(
     val isAutoGrid = uiState.layoutKind == HomeLayoutKind.AUTO_GRID
     val isCustomGrid = uiState.layoutKind == HomeLayoutKind.CUSTOM_GRID
     val scope = rememberCoroutineScope()
-    // --- Argosy-Launcher-ABC A-Z State ---
     var selectedAbcLetter by remember { mutableStateOf("A") }
     var isProgrammaticScroll by remember { mutableStateOf(false) }
     var skipNextProgrammaticScroll by remember { mutableStateOf(false) }
@@ -890,35 +886,19 @@ fun HomeScreen(
                             )
                         }
                         else -> {
-                            // --- Argosy-Launcher-ABC A-Z Strip ---
                             AbcCarouselStrip(
                                 selectedLetter = selectedAbcLetter,
                                 onLetterSelected = { letter ->
                                     selectedAbcLetter = letter
-                                    // Find first item starting with letter
-                                    val items = uiState.currentItems
-                                    // Try to get name from game or title
-                                    fun getName(item: com.nendo.argosy.domain.model.HomeGameItem): String {
-                                        return item.name ?: ""
-                                    }
-                                    val sortedIndices = items.mapIndexed { idx, item -> idx to getName(item) }
-                                        .sortedBy { it.second.lowercase() }
-                                    val targetLetter = letter.first()
-                                    val found = if (letter == "#") {
-                                        sortedIndices.firstOrNull()
-                                    } else {
-                                        sortedIndices.firstOrNull { 
-                                            it.second.trim().firstOrNull()?.uppercaseChar() == targetLetter 
-                                        }
-                                    }
-                                    found?.let { (originalIndex, _) ->
-                                        // Find where this item sits in currentItems order for focus
-                                        // Actually we want alphabetical jump, so set focus directly
+                                    val total = uiState.currentItems.size
+                                    if (total > 0) {
+                                        val alphabet = ('A'..'Z').toList()
+                                        val idx = alphabet.indexOf(letter.firstOrNull()?.uppercaseChar() ?: 'A')
+                                        val jumpTo = if (letter == "#") 0 else if (idx >= 0) (idx * total / 26).coerceIn(0, total - 1) else 0
                                         scope.launch {
-                                            viewModel.setFocusIndex(originalIndex)
-                                            // Also animate scroll
+                                            viewModel.setFocusIndex(jumpTo)
                                             listState.animateScrollToItem(
-                                                index = originalIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0)),
+                                                index = jumpTo,
                                                 scrollOffset = CarouselAnchor.START.snapOffsetPx
                                             )
                                         }
