@@ -31,11 +31,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.nendo.argosy.abc"
+        applicationId = "com.nendo.argosy"
         minSdk = 26
         targetSdk = 35
-        versionCode = 342
-        versionName = "2.17.1-ABC"
+        versionCode = 343
+        versionName = "2.17.2-ABC-PURPLE"
         resValue("string", "app_name", "Argosy ABC")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
