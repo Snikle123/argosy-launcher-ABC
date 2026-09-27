@@ -16,8 +16,8 @@ jobs:
           cache: gradle
       - name: Grant execute permission
         run: chmod +x gradlew
-      - name: Build ABC Debug APK (all ABIs)
-        run: ./gradlew assembleDebug -PallAbis --no-daemon
+      - name: Build ABC Debug APK
+        run: ./gradlew assembleDebug -PciOnly --no-daemon
       - name: Upload ABC APK
         uses: actions/upload-artifact@v4
         with:
