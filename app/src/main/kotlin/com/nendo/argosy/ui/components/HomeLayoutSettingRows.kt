@@ -185,6 +185,8 @@ fun toggleHomeLayoutField(settings: HomeLayoutSettings, field: HomeLayoutSetting
     return when (field) {
         HomeLayoutSettingField.INVERTED ->
             settings.copy(carousel = settings.carousel.copy(inverted = !settings.carousel.inverted))
+        HomeLayoutSettingField.ALPHABETICAL_SORT ->
+            settings.copy(carousel = settings.carousel.copy(alphabeticalSort = !settings.carousel.alphabeticalSort))   
         HomeLayoutSettingField.NEIGHBOUR_PUSH ->
             settings.copy(carousel = settings.carousel.copy(neighbourPush = !settings.carousel.neighbourPush))
         HomeLayoutSettingField.PLATFORM_BADGE ->
