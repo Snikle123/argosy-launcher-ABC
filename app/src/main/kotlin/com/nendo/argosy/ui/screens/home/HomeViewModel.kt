@@ -653,6 +653,7 @@ class HomeViewModel @Inject constructor(
                 gradientExtractionDelegate.updatePreferences(prefs.gradientPreset, prefs.boxArtBorderStyle)
 
                 _uiState.update {
+                    val sortedHomeApps = if (prefs.homeLayout.carousel.alphabeticalSort) prefs.secondaryHomeApps.sortedBy { it.title.lowercase() } else prefs.secondaryHomeApps 
                     it.copy(
                         backgroundBlur = prefs.backgroundBlur,
                         backgroundSaturation = prefs.backgroundSaturation,
@@ -660,11 +661,11 @@ class HomeViewModel @Inject constructor(
                         useGameBackground = prefs.useGameBackground,
                         customBackgroundPath = prefs.customBackgroundPath,
                         homeBackgroundMode = prefs.homeBackgroundMode,
-                        carouselConfig = prefs.homeLayout.carousel,
+                        carouselConfig = prefs.homeLayout.carousel, 
                         autoGridConfig = prefs.homeLayout.autoGrid,
                         customGridConfig = prefs.homeLayout.customGrid,
                         layoutKind = prefs.homeLayout.selected,
-                        homeApps = if (prefs.homeLayout.carousel.alphabeticalSort) prefs.secondaryHomeApps.sortedBy { it.title.lowercase() } else prefs.secondaryHomeApps
+                        homeApps = sortedHomeApps,
         }
                 customGrid.applyConfig(
                     autoFit = prefs.homeLayout.customGrid.autoFit,
