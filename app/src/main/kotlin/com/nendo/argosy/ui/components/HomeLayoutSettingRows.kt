@@ -46,6 +46,7 @@ enum class HomeLayoutSettingField {
     ROW_ALIGNMENT,
     FOCUS_POSITION,
     INVERTED,
+    ALPHABETICAL_SORT,
     RESTING_SCALE,
     NEIGHBOUR_PUSH,
     PLATFORM_BADGE,
