@@ -95,7 +95,8 @@ fun homeLayoutFieldsFor(kind: HomeLayoutKind): List<HomeLayoutSettingField> = wh
         HomeLayoutSettingField.NEIGHBOUR_PUSH,
         HomeLayoutSettingField.PLATFORM_BADGE,
         HomeLayoutSettingField.CAROUSEL_BOX_ART,
-        HomeLayoutSettingField.INVERTED
+        HomeLayoutSettingField.INVERTED,
+        HomeLayoutSettingField.ALPHABETICAL_SORT
     )
     HomeLayoutKind.AUTO_GRID -> listOf(
         HomeLayoutSettingField.SCROLL_AXIS,
