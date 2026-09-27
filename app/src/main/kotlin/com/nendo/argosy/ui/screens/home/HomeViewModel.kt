@@ -667,6 +667,7 @@ class HomeViewModel @Inject constructor(
                         layoutKind = prefs.homeLayout.selected,
                         homeApps = sortedHomeApps,
         )
+    }
                 customGrid.applyConfig(
                     autoFit = prefs.homeLayout.customGrid.autoFit,
                     storedPages = prefs.homeLayout.customGrid.pageCount
