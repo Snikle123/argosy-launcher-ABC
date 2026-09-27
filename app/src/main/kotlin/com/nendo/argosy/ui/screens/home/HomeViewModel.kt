@@ -653,7 +653,12 @@ class HomeViewModel @Inject constructor(
                 gradientExtractionDelegate.updatePreferences(prefs.gradientPreset, prefs.boxArtBorderStyle)
 
                 _uiState.update {
-                    val sortedHomeApps = if (prefs.homeLayout.carousel.alphabeticalSort) prefs.secondaryHomeApps.sortedBy { it.title.lowercase() } else prefs.secondaryHomeApps 
+                    val sortedHomeApps =
+    if (prefs.homeLayout.carousel.alphabeticalSort) {
+        prefs.secondaryHomeApps.sorted().toList()
+    } else {
+        prefs.secondaryHomeApps.toList()
+    }
                     it.copy(
                         backgroundBlur = prefs.backgroundBlur,
                         backgroundSaturation = prefs.backgroundSaturation,
