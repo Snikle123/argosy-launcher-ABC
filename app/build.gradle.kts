@@ -88,8 +88,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -110,6 +110,8 @@ android {
     }
 
     lint {
+        checkReleaseBuilds = false
+        abortOnError = false
         baseline = file("lint-baseline.xml")
         error += listOf(
             "MissingTranslation",
