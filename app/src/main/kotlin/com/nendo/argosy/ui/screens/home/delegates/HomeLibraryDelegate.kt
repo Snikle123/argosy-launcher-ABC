@@ -473,8 +473,12 @@ class HomeLibraryDelegate @Inject constructor(
                 val installedOnly = preferencesRepository.userPreferences.first().installedOnlyHome
                 if (installedOnly) {
                     games = filterPlayable(games)
-                }
-                val gameUis = games.map { it.toUi() }
+        }
+        val sortPrefs = preferencesRepository.userPreferences.first()
+        if (sortPrefs.homeLayout.carousel.alphabeticalSort) {
+            games = games.sortedBy { it.name.lowercase() }
+        }
+        val gameUis = games.map { it.toUi() }
                 _state.update { it.copy(favoriteGames = gameUis) }
                 RefreshResult(gameUis.map { it.id }, isEmpty = gameUis.isEmpty())
             }
