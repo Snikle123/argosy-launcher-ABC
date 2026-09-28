@@ -410,15 +410,16 @@ class HomeLibraryDelegate @Inject constructor(
     suspend fun loadPlatformGames(platform: HomePlatformUi) {
         val generation = platformLoadGeneration.incrementAndGet()
         val prefs = preferencesRepository.userPreferences.first()
-        val showsEveryGame = prefs.homeLayout.showsEveryGame
+        val alphabeticalSort = prefs.homeLayout.carousel.alphabeticalSort
+        val showsEveryGame = prefs.homeLayout.showsEveryGame || alphabeticalSort
         platformGameLoader.load(
             platformId = platform.id,
             showsEveryGame = showsEveryGame,
             installedOnly = prefs.installedOnlyHome,
-            publishLeadingPage = _state.value.platformItemsFor != platform.id,
+            publishLeadingPage = (_state.value.platformItemsFor != platform.id) && !alphabeticalSort,
             toUi = { it.toUi() },
             publish = { games, complete ->
-                val sortedForCarousel = if (prefs.homeLayout.carousel.alphabeticalSort) {
+                val sortedForCarousel = if (alphabeticalSort) {
                     games.sortedBy { it.title.lowercase() }
                 } else {
                     games
@@ -426,7 +427,7 @@ class HomeLibraryDelegate @Inject constructor(
                 publishPlatformItems(platform, sortedForCarousel, complete, showsEveryGame, generation)
             }
         )
-    }
+ 
 
     private fun publishPlatformItems(
         platform: HomePlatformUi,
