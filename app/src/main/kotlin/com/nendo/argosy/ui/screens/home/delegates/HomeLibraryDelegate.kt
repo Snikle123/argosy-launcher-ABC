@@ -418,7 +418,12 @@ class HomeLibraryDelegate @Inject constructor(
             publishLeadingPage = _state.value.platformItemsFor != platform.id,
             toUi = { it.toUi() },
             publish = { games, complete ->
-                publishPlatformItems(platform, games, complete, showsEveryGame, generation)
+                val sortedForCarousel = if (prefs.homeLayout.carousel.alphabeticalSort) {
+                    games.sortedBy { it.name.lowercase() }
+                } else {
+                    games
+                }
+                publishPlatformItems(platform, sortedForCarousel, complete, showsEveryGame, generation)
             }
         )
     }
