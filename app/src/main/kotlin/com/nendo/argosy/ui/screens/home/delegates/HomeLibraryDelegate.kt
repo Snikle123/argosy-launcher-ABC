@@ -419,7 +419,7 @@ class HomeLibraryDelegate @Inject constructor(
             toUi = { it.toUi() },
             publish = { games, complete ->
                 val sortedForCarousel = if (prefs.homeLayout.carousel.alphabeticalSort) {
-                    games.sortedBy { it.name.lowercase() }
+                    games.sortedBy { it.title.lowercase() }
                 } else {
                     games
                 }
@@ -481,7 +481,7 @@ class HomeLibraryDelegate @Inject constructor(
         }
         val sortPrefs = preferencesRepository.userPreferences.first()
         if (sortPrefs.homeLayout.carousel.alphabeticalSort) {
-            games = games.sortedBy { it.name.lowercase() }
+            games = games.sortedBy { it.title.lowercase() }
         }
         val gameUis = games.map { it.toUi() }
                 _state.update { it.copy(favoriteGames = gameUis) }
