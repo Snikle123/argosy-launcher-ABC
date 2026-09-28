@@ -427,7 +427,7 @@ class HomeLibraryDelegate @Inject constructor(
                 publishPlatformItems(platform, sortedForCarousel, complete, showsEveryGame, generation)
             }
         )
- 
+    }
 
     private fun publishPlatformItems(
         platform: HomePlatformUi,
