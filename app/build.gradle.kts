@@ -24,14 +24,13 @@ val envProperties = Properties().apply {
 }
 
 fun envString(key: String, default: String = ""): String =
-    envProperties.getProperty(key, System.getenv(key)?: default)
+    envProperties.getProperty(key, System.getenv(key) ?: default)
 
 android {
     namespace = "com.nendo.argosy"
     compileSdk = 35
 
     defaultConfig {
-        // CHANGE THIS so ABC can live next to Real Argosy
         applicationId = "com.nendo.argosy.ABC"
         minSdk = 26
         targetSdk = 35
@@ -55,7 +54,7 @@ android {
             it.replace(Regex("\\\\u([0-9A-Fa-f]{4})")) { match ->
                 match.groupValues[1].toInt(16).toChar().toString()
             }
-        }?: ""
+        } ?: ""
         buildConfigField("String", "UCDATA_PATH", "\"$ucdataPath\"")
         buildConfigField("String", "DISCORD_APP_ID", "\"${envString("DISCORD_APP_ID")}\"")
         buildConfigField("Boolean", "DISCORD_SDK_ENABLED", envString("DISCORD_SDK_ENABLED", "false"))
@@ -71,21 +70,14 @@ android {
 
     signingConfigs {
         create("release") {
-            // CI: GitHub Secrets method (app/argosy-abc.jks)
-            val ciKeystore = project.findProperty("abcKeystore") as String?
-            if (ciKeystore!= null && File(ciKeystore).exists()) {
-                storeFile = file(ciKeystore)
-                storePassword = System.getenv("KEYSTORE_PASSWORD")?: "abc123"
-                keyAlias = System.getenv("KEY_ALIAS")?: "abc"
-                keyPassword = System.getenv("KEY_PASSWORD")?: "abc123"
-            } else if (System.getenv("KEYSTORE_PASSWORD")!= null && File("app/argosy-abc.jks").exists()) {
-                // Fallback for CI without property
-                storeFile = file("app/argosy-abc.jks")
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
+            // SIMPLE FIX: always use app/argosy-abc.jks from root, no double app/
+            val ciFile = rootProject.file("app/argosy-abc.jks")
+            if (ciFile.exists()) {
+                storeFile = ciFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "abc123"
+                keyAlias = System.getenv("KEY_ALIAS") ?: "abc"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: "abc123"
             } else if (keystorePropertiesFile.exists()) {
-                // Local build with keystore.properties
                 storeFile = file(keystoreProperties["storeFile"] as String)
                 storePassword = keystoreProperties["storePassword"] as String
                 keyAlias = keystoreProperties["keyAlias"] as String
@@ -103,12 +95,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Use our release config if we have it, otherwise debug (so CI never fails)
-            signingConfig = try {
-                signingConfigs.getByName("release")
-            } catch (e: Exception) {
-                signingConfigs.getByName("debug")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isDebuggable = true
@@ -192,9 +179,9 @@ android.applicationVariants.all {
     outputs.all {
         val output = this as com.android.build.gradle.internal.api.ApkVariantOutputImpl
         val abi = output.getFilter("ABI")
-        val baseVersionCode = android.defaultConfig.versionCode?: 0
-        output.versionCodeOverride = if (abi!= null) {
-            (abiCodes[abi]?: 0) * 1_000_000 + baseVersionCode
+        val baseVersionCode = android.defaultConfig.versionCode ?: 0
+        output.versionCodeOverride = if (abi != null) {
+            (abiCodes[abi] ?: 0) * 1_000_000 + baseVersionCode
         } else {
             3 * 1_000_000 + baseVersionCode
         }
@@ -282,11 +269,10 @@ dependencies {
 val verifyQuayPassReleaseConfig = tasks.register("verifyQuayPassReleaseConfig") {
     doLast {
         if (envString("QUAYPASS_SERVER_PUBKEYS").isBlank()) {
-            // Allow CI builds without QuayPass keys for ABC fork
-            if (System.getenv("KEYSTORE_PASSWORD") == null) {
+            if (System.getenv("KEYSTORE_PASSWORD") == null && !rootProject.file("app/argosy-abc.jks").exists()) {
                 throw GradleException(
                     "QUAYPASS_SERVER_PUBKEYS is empty. A release build cannot verify QuayPass " +
-                        "credentials and would ship the feature permanently dark. Set it in.env " +
+                        "credentials and would ship the feature permanently dark. Set it in .env " +
                         "or the build environment."
                 )
             }
@@ -296,8 +282,8 @@ val verifyQuayPassReleaseConfig = tasks.register("verifyQuayPassReleaseConfig") 
 
 val verifyReleaseSigningConfig = tasks.register("verifyReleaseSigningConfig") {
     doLast {
-        val hasCiSecrets = System.getenv("KEYSTORE_PASSWORD")!= null || project.hasProperty("abcKeystore")
-        if (!keystorePropertiesFile.exists() &&!hasCiSecrets) {
+        val hasCiKeystore = rootProject.file("app/argosy-abc.jks").exists() || System.getenv("KEYSTORE_PASSWORD") != null
+        if (!keystorePropertiesFile.exists() && !hasCiKeystore) {
             throw GradleException(
                 "keystore.properties is missing. A release build would fall back to the debug " +
                     "signing key, and an APK signed with that key cannot install over an " +
