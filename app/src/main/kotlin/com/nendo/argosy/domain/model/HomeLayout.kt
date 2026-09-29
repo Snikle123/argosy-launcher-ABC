@@ -242,6 +242,8 @@ data class HomeLayoutSettings(
                         ?: defaults.carousel.inverted,
                     alphabeticalSort = carousel?.optBoolean(KEY_ALPHABETICAL_SORT, defaults.carousel.alphabeticalSort)
         ?: defaults.carousel.alphabeticalSort,
+                                    showViewAllTile = carousel?.optBoolean(KEY_SHOW_VIEW_ALL_TILE, defaults.carousel.showViewAllTile)
+                    ?: defaults.carousel.showViewAllTile,
                     restingScale = carousel?.optDouble(KEY_RESTING_SCALE)?.toFloat()
                         ?.takeIf { it.isFinite() && it > 0f }
                         ?.coerceIn(MIN_RESTING_SCALE, 1f) ?: defaults.carousel.restingScale,
