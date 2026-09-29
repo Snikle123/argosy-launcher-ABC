@@ -411,6 +411,7 @@ class HomeLibraryDelegate @Inject constructor(
         val generation = platformLoadGeneration.incrementAndGet()
         val prefs = preferencesRepository.userPreferences.first()
         val alphabeticalSort = prefs.homeLayout.carousel.alphabeticalSort
+        val showViewAllTile = prefs.homeLayout.carousel.showViewAllTile
         val showsEveryGame = prefs.homeLayout.showsEveryGame || alphabeticalSort
         platformGameLoader.load(
             platformId = platform.id,
@@ -424,7 +425,7 @@ class HomeLibraryDelegate @Inject constructor(
                 } else {
                     games
                 }
-                publishPlatformItems(platform, sortedForCarousel, complete, showsEveryGame, generation)
+                publishPlatformItems(platform, sortedForCarousel, complete, showEveryGame, showViewAllTile, generation)
             }
         )
     }
@@ -434,6 +435,7 @@ class HomeLibraryDelegate @Inject constructor(
         games: List<HomeGameUi>,
         complete: Boolean,
         showsEveryGame: Boolean,
+        showViewAllTile:Boolean,
         generation: Long
     ): Boolean {
         if (platformLoadGeneration.get() != generation) return false
