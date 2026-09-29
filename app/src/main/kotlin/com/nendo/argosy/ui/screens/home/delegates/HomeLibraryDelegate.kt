@@ -425,7 +425,7 @@ class HomeLibraryDelegate @Inject constructor(
                 } else {
                     games
                 }
-                publishPlatformItems(platform, sortedForCarousel, complete, showEveryGame, showViewAllTile, generation)
+                publishPlatformItems(platform, sortedForCarousel, complete, showsEveryGame, showViewAllTile, generation)
             }
         )
     }
