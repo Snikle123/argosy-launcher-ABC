@@ -481,7 +481,6 @@ isFocused = isFocused,
 onToggle = { onToggle() }
 )
 }
-}
 ​@Composable
 private fun autoAddLabel(mode: HomeTileAutoAdd): String = when (mode) {
 HomeTileAutoAdd.OFF -> stringResource(R.string.ui_home_layout_auto_add_off)
