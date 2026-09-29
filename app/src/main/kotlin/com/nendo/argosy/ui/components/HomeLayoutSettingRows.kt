@@ -175,9 +175,9 @@ settings.copy(rails = settings.rails.copy(showContinueWatching = direction > 0))
 HomeLayoutSettingField.RAIL_NEXT_UP ->
 settings.copy(rails = settings.rails.copy(showNextUp = direction > 0))
 }
-​/
-​Confirm handling for [field]. Toggles flip; everything else is unchanged, because confirm never
-​adjusts a value in this menu system.
+​/**
+​*Confirm handling for [field]. Toggles flip; everything else is unchanged, because confirm never
+​*adjusts a value in this menu system.
 */
 fun toggleHomeLayoutField(settings: HomeLayoutSettings, field: HomeLayoutSettingField): HomeLayoutSettings {
 return when (field) {
@@ -235,9 +235,9 @@ else -> settings
 }
 }
 ​private val SelectableChipIndicators = FocusIndicators(fill = true, ring = true)
-​/
-​The layout selector: one tile per layout, the selected one raised. Kept separate from the picker
-​so a settings pane can place it among its own rows with the preview sitting directly above it.
+​/**
+​*The layout selector: one tile per layout, the selected one raised. Kept separate from the picker
+​*so a settings pane can place it among its own rows with the preview sitting directly above it.
 */
 @Composable
 fun HomeLayoutSelectorRow(
