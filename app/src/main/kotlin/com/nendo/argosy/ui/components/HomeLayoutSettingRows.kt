@@ -510,9 +510,9 @@ private fun scrollAxisLabel(axis: HomeScrollAxis): String = when (axis) {
 HomeScrollAxis.VERTICAL -> stringResource(R.string.ui_home_layout_axis_vertical)
 HomeScrollAxis.HORIZONTAL -> stringResource(R.string.ui_home_layout_axis_horizontal)
 }
-​/
-​Lanes run across the axis that is not scrolling, so the same stored number is presented as
-​columns or rows depending on which way the grid moves.
+​/**
+*​Lanes run across the axis that is not scrolling, so the same stored number is presented as
+*​columns or rows depending on which way the grid moves.
 */
 @Composable
 private fun laneCountLabel(axis: HomeScrollAxis): String = when (axis) {
