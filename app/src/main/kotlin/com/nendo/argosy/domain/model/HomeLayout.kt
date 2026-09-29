@@ -31,6 +31,7 @@ data class CarouselConfig(
     val rowAlignment: HomeRowAlignment = HomeRowAlignment.BOTTOM,
     val focusPosition: HomeFocusPosition = HomeFocusPosition.LEADING,
     val inverted: Boolean = false,
+    val showViewAllTile: Boolean = true, 
     val alphabeticalSort: Boolean = true,
     val restingScale: Float = 0.5f,
     val neighbourPush: Boolean = true,
