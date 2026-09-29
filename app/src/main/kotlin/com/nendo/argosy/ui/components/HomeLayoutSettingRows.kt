@@ -33,11 +33,11 @@ import com.nendo.argosy.ui.theme.LocalArgosyTheme
 import com.nendo.argosy.ui.theme.generated.ComponentDefaults
 import com.nendo.argosy.ui.util.clickableNoFocus
 import kotlin.math.roundToInt
-​/
-​Every adjustable home field, so a caller routes one exhaustive when instead of one per layout.
-​Most entries belong to a single layout and are listed by [homeLayoutFieldsFor]. The media entries
-​are the exception: they say which rows home offers rather than how one layout draws, so they are
-​listed by [homeRailFields] and a host places them among its own content rows.
+​/**
+​*Every adjustable home field, so a caller routes one exhaustive when instead of one per layout.
+​*Most entries belong to a single layout and are listed by [homeLayoutFieldsFor]. The media entries
+​*are the exception: they say which rows home offers rather than how one layout draws, so they are
+​*listed by [homeRailFields] and a host places them among its own content rows.
 */
 enum class HomeLayoutSettingField {
 ROW_ALIGNMENT,
@@ -64,10 +64,10 @@ RAIL_MEDIA_LIBRARIES,
 RAIL_CONTINUE_WATCHING,
 RAIL_NEXT_UP
 }
-​/
-​The media row toggles, in render order. Kept apart from the per-layout lists because which rows
-​home offers is not a layout setting; a host that draws rows at all draws these regardless of which
-​layout is selected.
+​/**
+​*The media row toggles, in render order. Kept apart from the per-layout lists because which rows
+​*home offers is not a layout setting; a host that draws rows at all draws these regardless of which
+​*layout is selected.
 */
 fun homeRailFields(): List<HomeLayoutSettingField> = listOf(
 HomeLayoutSettingField.RAIL_MEDIA_LIBRARIES,
@@ -78,9 +78,9 @@ HomeLayoutSettingField.RAIL_NEXT_UP
 private const val RESTING_SCALE_MIN_PERCENT = 50
 private const val RESTING_SCALE_MAX_PERCENT = 100
 private const val PERCENT = 100f
-​/
-​The fields [kind] owns, in render order. The host lays these out among its own rows and drives
-​focus against them, so what gamepad focus reaches and what is drawn cannot drift apart.
+​/**
+​*he fields [kind] owns, in render order. The host lays these out among its own rows and drives
+​*focus against them, so what gamepad focus reaches and what is drawn cannot drift apart.
 */
 fun homeLayoutFieldsFor(kind: HomeLayoutKind): List<HomeLayoutSettingField> = when (kind) {
 HomeLayoutKind.CAROUSEL -> listOf(
