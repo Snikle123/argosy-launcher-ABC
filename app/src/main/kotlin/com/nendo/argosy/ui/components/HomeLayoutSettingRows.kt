@@ -79,7 +79,7 @@ private const val RESTING_SCALE_MIN_PERCENT = 50
 private const val RESTING_SCALE_MAX_PERCENT = 100
 private const val PERCENT = 100f
 ​/**
-​*he fields [kind] owns, in render order. The host lays these out among its own rows and drives
+​*The fields [kind] owns, in render order. The host lays these out among its own rows and drives
 ​*focus against them, so what gamepad focus reaches and what is drawn cannot drift apart.
 */
 fun homeLayoutFieldsFor(kind: HomeLayoutKind): List<HomeLayoutSettingField> = when (kind) {
