@@ -31,7 +31,7 @@ data class CarouselConfig(
     val rowAlignment: HomeRowAlignment = HomeRowAlignment.BOTTOM,
     val focusPosition: HomeFocusPosition = HomeFocusPosition.LEADING,
     val inverted: Boolean = false,
-    val alphabeticalSort: Boolean = false,
+    val alphabeticalSort: Boolean = true,
     val restingScale: Float = 0.5f,
     val neighbourPush: Boolean = true,
     val showPlatformBadge: Boolean = true,
@@ -146,6 +146,7 @@ data class HomeLayoutSettings(
                 put(KEY_FOCUS_POSITION, carousel.focusPosition.name)
                 put(KEY_INVERTED, carousel.inverted)
                 put(KEY_ALPHABETICAL_SORT, carousel.alphabeticalSort)
+                put(KEY_SHOW_VIEW_ALL_TILE, carousel.showViewAllTile)
                 put(KEY_RESTING_SCALE, carousel.restingScale.toDouble())
                 put(KEY_NEIGHBOUR_PUSH, carousel.neighbourPush)
                 put(KEY_PLATFORM_BADGE, carousel.showPlatformBadge)
@@ -193,6 +194,7 @@ data class HomeLayoutSettings(
         private const val KEY_FOCUS_POSITION = "focusPosition"
         private const val KEY_INVERTED = "inverted"
         private const val KEY_ALPHABETICAL_SORT = "alphabeticalSort"
+        private const val KEY_SHOW_VIEW_ALL_TILE = "showViewAllTile"
         private const val KEY_USE_BOX_ART = "useBoxArt"
         private const val KEY_RAILS = "rails"
         private const val KEY_RESTING_SCALE = "restingScale"
