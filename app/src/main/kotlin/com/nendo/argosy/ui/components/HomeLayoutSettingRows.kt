@@ -293,18 +293,18 @@ color = if (isSelected) theme.textPrimary else theme.textDim
 )
 }
 }
-​/
-​One layout setting rendered with the standard preference controls, so a layout field looks and
-​behaves like every other row wherever it is hosted.
-/
-/*
-​[boxArtCapableGames] is how many games hold both a front cover and a spine. The box art rows say
-​so when it is zero, because the setting still turns on and still changes nothing: a library whose
-​metadata source never supplied spine art draws every game flat, and without a word here that
-​looks like a broken toggle rather than missing artwork.
-​Null means the count was not supplied, and reads as the ordinary subtitle. A caller that forgets
-​to pass it must not make the screen assert there is no spine art.
-*/
+​/**
+ * One layout setting rendered with the standard preference controls, so a layout field looks and
+ * behaves like every other row wherever it is hosted.
+ *
+ * [boxArtCapableGames] is how many games hold both a front cover and a spine. The box art rows say
+ * so when it is zero, because the setting still turns on and still changes nothing: a library whose
+ * metadata source never supplied spine art draws every game flat, and without a word here that
+ * looks like a broken toggle rather than missing artwork.
+ *
+ * Null means the count was not supplied, and reads as the ordinary subtitle. A caller that forgets
+ * to pass it must not make the screen assert there is no spine art.
+ */
 @Composable
 fun HomeLayoutSettingRow(
 settings: HomeLayoutSettings,
@@ -347,7 +347,7 @@ isFocused = isFocused,
 onToggle = { onToggle() }
 )
 HomeLayoutSettingField.SHOW_VIEW_ALL_TILE -> SwitchPreference(
-title = ""View All" Tile",
+title = "Show 'View All' Tile",
 isEnabled = settings.carousel.showViewAllTile,
 isFocused = isFocused,
 onToggle = { onToggle() }
