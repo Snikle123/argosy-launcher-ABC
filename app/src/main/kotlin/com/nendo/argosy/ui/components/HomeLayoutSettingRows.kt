@@ -110,9 +110,9 @@ HomeLayoutSettingField.CUSTOM_GRID_PERSIST_PAGES,
 HomeLayoutSettingField.CUSTOM_GRID_AUTO_ADD
 )
 }
-​/
-​Left/right adjustment for [field]. Booleans follow the house rule that left is off and right is
-​on; enums wrap; numbers clamp.
+​/**
+*​Left/right adjustment for [field]. Booleans follow the house rule that left is off and right is
+*​on; enums wrap; numbers clamp.
 */
 fun adjustHomeLayoutField(
 settings: HomeLayoutSettings,
