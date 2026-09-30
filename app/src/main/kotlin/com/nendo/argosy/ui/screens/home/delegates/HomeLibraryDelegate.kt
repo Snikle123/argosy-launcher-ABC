@@ -441,7 +441,7 @@ class HomeLibraryDelegate @Inject constructor(
         if (platformLoadGeneration.get() != generation) return false
         val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it) }
                val items = if (showViewAllTile) {
-            gameItems + HomeRowItem.ViewAll(
+              gameItems.take(20) + HomeRowItem.ViewAll( 
                 platformId = platform.id,
                 platformName = platform.name,
                 logoPath = platform.logoPath
