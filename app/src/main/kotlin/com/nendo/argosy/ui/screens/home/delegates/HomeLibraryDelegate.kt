@@ -410,9 +410,10 @@ class HomeLibraryDelegate @Inject constructor(
     suspend fun loadPlatformGames(platform: HomePlatformUi) {
         val generation = platformLoadGeneration.incrementAndGet()
         val prefs = preferencesRepository.userPreferences.first()
-        val alphabeticalSort = prefs.homeLayout.carousel.alphabeticalSort
-        val showViewAllTile = prefs.homeLayout.carousel.showViewAllTile
-        val showsEveryGame = prefs.homeLayout.showsEveryGame || alphabeticalSort
+      val isCarousel = prefs.homeLayout.selected == HomeLayoutKind.CAROUSEL
+val alphabeticalSort = isCarousel && prefs.homeLayout.carousel.alphabeticalSort
+val showViewAllTile = prefs.homeLayout.carousel.showViewAllTile
+val showsEveryGame = prefs.homeLayout.showsEveryGame || alphabeticalSort
         platformGameLoader.load(
             platformId = platform.id,
             showsEveryGame = showsEveryGame,
@@ -430,24 +431,26 @@ class HomeLibraryDelegate @Inject constructor(
         )
     }
 
-    private fun publishPlatformItems(
-        platform: HomePlatformUi,
-        games: List<HomeGameUi>,
-        complete: Boolean,
-        showsEveryGame: Boolean,
-        showViewAllTile:Boolean,
-        generation: Long
-    ): Boolean {
+  private fun publishPlatformItems(
+    platform: HomePlatformUi,
+    games: List<HomeGameUi>,
+    complete: Boolean,
+    showsEveryGame: Boolean,
+    showViewAllTile: Boolean,
+    isCarousel: Boolean,
+    generation: Long
+): Boolean { 
         if (platformLoadGeneration.get() != generation) return false
         val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it) }
-                val shouldShowViewAll = if (showsEveryGame) {
-            false
-        } else {
+                 val shouldShowViewAll = if (isCarousel) {
             showViewAllTile
+        } else {
+            !showsEveryGame
         }
 
         val items = if (shouldShowViewAll) {
-            gameItems.take(20) + HomeRowItem.ViewAll(
+            val count = if (isCarousel) 20 else gameItems.size
+            gameItems.take(count) + HomeRowItem.ViewAll(
                 platformId = platform.id,
                 platformName = platform.name,
                 logoPath = platform.logoPath
