@@ -22,6 +22,7 @@ import com.nendo.argosy.core.notification.NotificationManager
 import com.nendo.argosy.core.notification.NotificationText
 import com.nendo.argosy.core.notification.showError
 import com.nendo.argosy.core.notification.showSuccess
+import com.nendo.argosy.domain.model.HomeLayoutKind
 import com.nendo.argosy.ui.common.toHomeGameUi
 import com.nendo.argosy.ui.screens.common.GameGradientRequest
 import com.nendo.argosy.ui.screens.common.GradientExtractionDelegate
@@ -426,7 +427,7 @@ val showsEveryGame = prefs.homeLayout.showsEveryGame || alphabeticalSort
                 } else {
                     games
                 }
-                publishPlatformItems(platform, sortedForCarousel, complete, showsEveryGame, showViewAllTile, generation)
+               publishPlatformItems(platform, sortedForCarousel, complete, showsEveryGame, showViewAllTile, isCarousel, generation)
             }
         )
     }
