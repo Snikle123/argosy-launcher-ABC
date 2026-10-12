@@ -907,11 +907,14 @@ fun HomeScreen(
                         }
                         else -> {
                             CarouselRail(
-                                items = rememberHomeCarouselItems(
+                                    items = rememberHomeCarouselItems(
                                     items = uiState.currentItems,
                                     rowKey = uiState.currentRow.toString(),
-                                    repairedCoverPaths = uiState.repairedCoverPaths
+                                    repairedCoverPaths = uiState.repairedCoverPaths,
+                                    alphabeticalSort = uiState.carouselConfig.alphabeticalSort,
+                                    showViewAllTile = uiState.carouselConfig.showViewAllTile
                                 ),
+ 
                                 downloadIndicatorFor = { item ->
                                     when (item) {
                                         is CarouselItem.Game ->
@@ -1781,9 +1784,37 @@ private val PAGE_BACKGROUND_EXTENSIONS: Set<String> =
 private fun rememberHomeCarouselItems(
     items: List<HomeRowItem>,
     rowKey: String,
-    repairedCoverPaths: Map<Long, String>
-): List<CarouselItem> = remember(items, rowKey, repairedCoverPaths) {
-    items.map { item ->
+    repairedCoverPaths: Map<Long, String>,
+    alphabeticalSort: Boolean = false,
+    showViewAllTile: Boolean = false
+): List<CarouselItem> = remember(items, rowKey, repairedCoverPaths, alphabeticalSort, showViewAllTile) {
+    val filteredItems = if (showViewAllTile) {
+        items
+    } else {
+        items.filter { it !is HomeRowItem.ViewAll }
+    }
+
+    val finalItems = if (alphabeticalSort) {
+        val viewAllItems = filteredItems.filterIsInstance<HomeRowItem.ViewAll>()
+        val gamesAndMedia = filteredItems.filter { it !is HomeRowItem.ViewAll }.sortedWith { a, b ->
+            val titleA = when (a) {
+                is HomeRowItem.Game -> a.game.title
+                is HomeRowItem.Media -> a.media.title
+                else -> ""
+            }
+            val titleB = when (b) {
+                is HomeRowItem.Game -> b.game.title
+                is HomeRowItem.Media -> b.media.title
+                else -> ""
+            }
+            titleA.compareTo(titleB, ignoreCase = true)
+        }
+        gamesAndMedia + viewAllItems
+    } else {
+        filteredItems
+    }
+
+    finalItems.map { item ->
         when (item) {
             is HomeRowItem.Game -> CarouselItem.Game(
                 key = "$rowKey-${item.game.id}",
