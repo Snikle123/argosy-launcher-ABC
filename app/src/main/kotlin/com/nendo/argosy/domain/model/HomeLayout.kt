@@ -33,7 +33,10 @@ data class CarouselConfig(
     val inverted: Boolean = false,
     val restingScale: Float = 0.5f,
     val neighbourPush: Boolean = true,
-    val showPlatformBadge: Boolean = true
+    val showPlatformBadge: Boolean = true,
+    val alphabeticalSort: Boolean = false,
+    val showViewAllTile: Boolean = false
+
 ) : HomeLayoutConfig {
     override val kind: HomeLayoutKind get() = HomeLayoutKind.CAROUSEL
 
@@ -299,6 +302,9 @@ data class HomeLayoutSettings(
                 put(KEY_RESTING_SCALE, carousel.restingScale.toDouble())
                 put(KEY_NEIGHBOUR_PUSH, carousel.neighbourPush)
                 put(KEY_PLATFORM_BADGE, carousel.showPlatformBadge)
+                put(KEY_CAROUSEL_ALPHABETICAL_SORT, carousel.alphabeticalSort)
+                put(KEY_CAROUSEL_VIEW_ALL_TILE, carousel.showViewAllTile)
+ 
             }
         )
         put(
@@ -353,6 +359,9 @@ data class HomeLayoutSettings(
         private const val KEY_RESTING_SCALE = "restingScale"
         private const val KEY_NEIGHBOUR_PUSH = "neighbourPush"
         private const val KEY_PLATFORM_BADGE = "showPlatformBadge"
+        private const val KEY_CAROUSEL_ALPHABETICAL_SORT = "carouselAlphabeticalSort"
+        private const val KEY_CAROUSEL_VIEW_ALL_TILE = "carouselViewAllTile"
+
         private const val KEY_SCROLL_AXIS = "scrollAxis"
         private const val KEY_LANE_COUNT = "laneCount"
         private const val KEY_SHOW_TITLES = "showTitles"
@@ -407,7 +416,12 @@ data class HomeLayoutSettings(
                     neighbourPush = carousel?.optBoolean(KEY_NEIGHBOUR_PUSH, defaults.carousel.neighbourPush)
                         ?: defaults.carousel.neighbourPush,
                     showPlatformBadge = carousel?.optBoolean(KEY_PLATFORM_BADGE, defaults.carousel.showPlatformBadge)
-                        ?: defaults.carousel.showPlatformBadge
+                        ?: defaults.carousel.showPlatformBadge,
+                    alphabeticalSort = carousel?.optBoolean(KEY_CAROUSEL_ALPHABETICAL_SORT, defaults.carousel.alphabeticalSort)
+                    ?: defaults.carousel.alphabeticalSort,
+                showViewAllTile = carousel?.optBoolean(KEY_CAROUSEL_VIEW_ALL_TILE, defaults.carousel.showViewAllTile)
+                    ?: defaults.carousel.showViewAllTile,
+
                 ),
                 autoGrid = AutoGridConfig(
                     scrollAxis = enumOrDefault(
