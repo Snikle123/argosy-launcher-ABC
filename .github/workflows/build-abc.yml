@@ -25,6 +25,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          QUAYPASS_SERVER_PUBKEYS: "dummy_key"
         run: ./gradlew assembleRelease -PciOnly --no-daemon -PabcKeystore=app/argosy-abc.jks
       - name: Upload ABC APK
         uses: actions/upload-artifact@v4
