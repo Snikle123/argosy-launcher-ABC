@@ -37,6 +37,8 @@ enum class HomeLayoutSettingField {
     RESTING_SCALE,
     NEIGHBOUR_PUSH,
     PLATFORM_BADGE,
+    CAROUSEL_ALPHABETICAL_SORT,
+    CAROUSEL_VIEW_ALL_TILE,
     SCROLL_AXIS,
     AUTO_GRID_LANES,
     SHOW_TITLES,
@@ -79,7 +81,9 @@ fun homeLayoutFieldsFor(kind: HomeLayoutKind): List<HomeLayoutSettingField> = wh
         HomeLayoutSettingField.RESTING_SCALE,
         HomeLayoutSettingField.NEIGHBOUR_PUSH,
         HomeLayoutSettingField.PLATFORM_BADGE,
-        HomeLayoutSettingField.INVERTED
+        HomeLayoutSettingField.INVERTED,
+        HomeLayoutSettingField.CAROUSEL_ALPHABETICAL_SORT,
+        HomeLayoutSettingField.CAROUSEL_VIEW_ALL_TILE
     )
     HomeLayoutKind.AUTO_GRID -> listOf(
         HomeLayoutSettingField.SCROLL_AXIS,
@@ -123,6 +127,11 @@ fun adjustHomeLayoutField(
             settings.copy(carousel = settings.carousel.copy(focusPosition = step(settings.carousel.focusPosition, direction)))
         HomeLayoutSettingField.INVERTED ->
             settings.copy(carousel = settings.carousel.copy(inverted = direction > 0))
+            HomeLayoutSettingField.CAROUSEL_ALPHABETICAL_SORT ->
+    settings.copy(carousel = settings.carousel.copy(alphabeticalSort = direction > 0))
+HomeLayoutSettingField.CAROUSEL_VIEW_ALL_TILE ->
+    settings.copy(carousel = settings.carousel.copy(showViewAllTile = direction > 0))
+
         HomeLayoutSettingField.RESTING_SCALE ->
             settings.copy(
                 carousel = settings.carousel.copy(
@@ -206,6 +215,11 @@ fun toggleHomeLayoutField(settings: HomeLayoutSettings, field: HomeLayoutSetting
             settings.copy(carousel = settings.carousel.copy(neighbourPush = !settings.carousel.neighbourPush))
         HomeLayoutSettingField.PLATFORM_BADGE ->
             settings.copy(carousel = settings.carousel.copy(showPlatformBadge = !settings.carousel.showPlatformBadge))
+        HomeLayoutSettingField.CAROUSEL_ALPHABETICAL_SORT ->
+            settings.copy(carousel = settings.carousel.copy(alphabeticalSort = !settings.carousel.alphabeticalSort))
+        HomeLayoutSettingField.CAROUSEL_VIEW_ALL_TILE ->
+            settings.copy(carousel = settings.carousel.copy(showViewAllTile = !settings.carousel.showViewAllTile))
+
         HomeLayoutSettingField.SHOW_TITLES ->
             settings.copy(autoGrid = settings.autoGrid.copy(showTitles = !settings.autoGrid.showTitles))
         HomeLayoutSettingField.AUTO_GRID_SHOW_ALL ->
@@ -292,6 +306,19 @@ fun HomeLayoutSettingRow(
             isFocused = isFocused,
             onToggle = { onToggle() }
         )
+        HomeLayoutSettingField.CAROUSEL_ALPHABETICAL_SORT -> SwitchPreference(
+            title = "Alphabetical Carousel",
+            isEnabled = settings.carousel.alphabeticalSort,
+            isFocused = isFocused,
+            onToggle = { onToggle() }
+        )
+        HomeLayoutSettingField.CAROUSEL_VIEW_ALL_TILE -> SwitchPreference(
+            title = "Carousel View All Tile",
+            isEnabled = settings.carousel.showViewAllTile,
+            isFocused = isFocused,
+            onToggle = { onToggle() }
+        )
+
         HomeLayoutSettingField.RESTING_SCALE -> SliderPreference(
             title = stringResource(R.string.ui_home_layout_resting_scale),
             value = percentOf(settings.carousel.restingScale),
