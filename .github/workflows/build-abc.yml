@@ -30,14 +30,14 @@ jobs:
           EOF
           cp keystore.properties app/keystore.properties
 
-      - name: Build ABC Release APK (SIGNED)
+           - name: Build ABC Release APK (SIGNED)
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           QUAYPASS_SERVER_PUBKEYS: "dummy_key"
-          _JAVA_OPTIONS: "-Xmx6144m -XX:+UseG1GC"
-        run: ./gradlew assembleRelease -PciOnly --no-daemon -PabcKeystore=app/argosy-abc.jks
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs=\"-Xmx6144m -XX:+UseParallelGC\""
+          run: ./gradlew assembleRelease -PciOnly --no-daemon -PabcKeystore=app/argosy-abc.jks
       - name: Upload ABC APK
         uses: actions/upload-artifact@v4
         with:
