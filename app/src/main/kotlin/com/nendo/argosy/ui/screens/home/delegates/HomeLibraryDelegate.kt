@@ -411,7 +411,8 @@ class HomeLibraryDelegate @Inject constructor(
     suspend fun loadPlatformGames(platform: HomePlatformUi) {
         val generation = platformLoadGeneration.incrementAndGet()
         val prefs = preferencesRepository.userPreferences.first()
-        val showsEveryGame = prefs.homeLayout.showsEveryGame
+       val carouselAlphabetical = (prefs.homeLayout as? CarouselConfig)?.alphabeticalSort == true
+       val showsEveryGame = prefs.homeLayout.showsEveryGame || carouselAlphabetical
         platformGameLoader.load(
             platformId = platform.id,
             showsEveryGame = showsEveryGame,
