@@ -31,7 +31,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.nendo.argosy"
+        applicationId = "com.argosy.launcher"
         minSdk = 26
         targetSdk = 35
         versionCode = 354
