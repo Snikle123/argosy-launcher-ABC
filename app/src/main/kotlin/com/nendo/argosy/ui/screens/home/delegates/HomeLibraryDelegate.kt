@@ -488,7 +488,7 @@ class HomeLibraryDelegate @Inject constructor(
         }
         return true
     }
-
+    private fun updatePinnedGames(pinId: Long, games: List<Game>) {
         val gameUis = games.toUis()
         _state.update { state ->
             state.copy(
