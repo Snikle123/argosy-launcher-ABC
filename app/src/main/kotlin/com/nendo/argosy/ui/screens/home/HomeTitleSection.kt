@@ -71,7 +71,7 @@ internal fun rememberHomeTitleMetadata(uiState: HomeUiState): List<HomeMetadataM
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     return remember(items, uiState.friendsActivity, context, configuration) {
-        items.mapNotNull { item ->
+        items.map { item ->
             when (item) {
                 is HomeRowItem.Game -> {
                     val game = item.game
@@ -94,7 +94,13 @@ internal fun rememberHomeTitleMetadata(uiState: HomeUiState): List<HomeMetadataM
                     )
                 }
                 is HomeRowItem.Media -> HomeMetadataMeasureInput(item.media.subtitle, emptyList(), null, 0)
-                is HomeRowItem.ViewAll -> null
+                is HomeRowItem.ViewAll -> HomeMetadataMeasureInput(
+                        developer = null,
+                        badges = emptyList(),
+                        friendsLabel = null,
+                        avatarCount = 0
+)
+
             }
         }
     }
