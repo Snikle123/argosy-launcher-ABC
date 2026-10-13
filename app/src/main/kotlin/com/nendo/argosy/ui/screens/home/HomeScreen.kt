@@ -698,7 +698,7 @@ fun HomeScreen(
             .then(swipeGestureModifier)
         ) {
             val availableCarouselWidth = maxWidth
-            val showTitle = !presentationShowsHints && !isAutoGrid && !isCustomGrid && !uiState.isMediaRow
+            val showTitle = !presentationShowsHints && !isAutoGrid && !isCustomGrid && !uiState.isMediaRow && (uiState.focusedGame != null || uiState.focusedMedia != null)
             val footerHeight = if (presentationShowsHints) {
                 dockHeight + chromeVerticalPadding
             } else {
