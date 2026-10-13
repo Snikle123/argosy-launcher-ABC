@@ -411,16 +411,35 @@ class HomeLibraryDelegate @Inject constructor(
     suspend fun loadPlatformGames(platform: HomePlatformUi) {
         val generation = platformLoadGeneration.incrementAndGet()
         val prefs = preferencesRepository.userPreferences.first()
-       val carouselAlphabetical = (prefs.homeLayout as? CarouselConfig)?.alphabeticalSort == true
-       val showsEveryGame = prefs.homeLayout.showsEveryGame || carouselAlphabetical
+        val isCarousel = prefs.homeLayout.selected == HomeLayoutKind.CAROUSEL
+        val alphabeticalSort = isCarousel && prefs.homeLayout.carousel.alphabeticalSort
+        val showViewAllTile = prefs.homeLayout.carousel.showViewAllTile
+
+        // Carousel needs every game loaded whenever Alphabetical is on, or when View All tile is off
+        val carouselWantsAll = isCarousel && (alphabeticalSort || !showViewAllTile)
+        val showsEveryGame = prefs.homeLayout.showsEveryGame || carouselWantsAll
+
         platformGameLoader.load(
             platformId = platform.id,
             showsEveryGame = showsEveryGame,
             installedOnly = prefs.installedOnlyHome,
-            publishLeadingPage = _state.value.platformItemsFor != platform.id,
-            toUi = { game, art -> game.toUi(art) },
+            publishLeadingPage = (_state.value.platformItemsFor != platform.id) && !alphabeticalSort,
+            toUi = { it.toUi() },
             publish = { games, complete ->
-                publishPlatformItems(platform, games, complete, showsEveryGame, generation)
+                val sortedGames = if (alphabeticalSort) {
+                    games.sortedBy { it.title.lowercase() }
+                } else {
+                    games
+                }
+                publishPlatformItems(
+                    platform = platform,
+                    games = sortedGames,
+                    complete = complete,
+                    showsEveryGame = showsEveryGame,
+                    showViewAllTile = showViewAllTile,
+                    isCarousel = isCarousel,
+                    generation = generation
+                )
             }
         )
     }
@@ -430,35 +449,46 @@ class HomeLibraryDelegate @Inject constructor(
         games: List<HomeGameUi>,
         complete: Boolean,
         showsEveryGame: Boolean,
+        showViewAllTile: Boolean,
+        isCarousel: Boolean,
         generation: Long
     ): Boolean {
         if (platformLoadGeneration.get() != generation) return false
         val gameItems: List<HomeRowItem> = games.map { HomeRowItem.Game(it) }
-        val items = if (showsEveryGame) {
-            gameItems
+
+        val items = if (isCarousel) {
+            if (showViewAllTile) {
+                // If the user wants the View All tile, cap the visible games at 20 and append the tile
+                gameItems.take(20) + HomeRowItem.ViewAll(
+                    platformId = platform.id,
+                    platformName = platform.name,
+                    logoPath = platform.logoPath
+                )
+            } else {
+                // View All tile turned OFF: show ALL games in the carousel
+                gameItems
+            }
         } else {
-            gameItems + HomeRowItem.ViewAll(
-                platformId = platform.id,
-                platformName = platform.name,
-                logoPath = platform.logoPath
-            )
+            // Grid mode
+            if (!showsEveryGame) {
+                // Capped grid: show 20 games and append View All
+                gameItems.take(20) + HomeRowItem.ViewAll(
+                    platformId = platform.id,
+                    platformName = platform.name,
+                    logoPath = platform.logoPath
+                )
+            } else {
+                // Show Every Game turned ON: show full library
+                gameItems
+            }
         }
+
         _state.update {
             it.copy(platformItems = items, platformItemsFor = platform.id, platformItemsComplete = complete)
         }
         return true
     }
 
-    suspend fun loadGamesForPinnedCollection(pinId: Long) {
-        val pinned = _state.value.pinnedCollections.find { it.id == pinId } ?: return
-        var games = getGamesForPinnedCollectionUseCase(pinned).first()
-        if (discoverGamesIfNeeded(games)) {
-            games = getGamesForPinnedCollectionUseCase(pinned).first()
-        }
-        val installedOnly = preferencesRepository.userPreferences.first().installedOnlyHome
-        if (installedOnly) {
-            games = filterPlayable(games)
-        }
         val gameUis = games.toUis()
         _state.update { state ->
             state.copy(
