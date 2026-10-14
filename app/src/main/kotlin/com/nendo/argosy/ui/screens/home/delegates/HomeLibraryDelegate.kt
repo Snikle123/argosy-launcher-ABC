@@ -424,7 +424,7 @@ class HomeLibraryDelegate @Inject constructor(
             showsEveryGame = showsEveryGame,
             installedOnly = prefs.installedOnlyHome,
             publishLeadingPage = (_state.value.platformItemsFor != platform.id) && !alphabeticalSort,
-            toUi = { it.toUi() },
+            toUi = { game, art -> game.toUi(art) },
             publish = { games, complete ->
                 val sortedGames = if (alphabeticalSort) {
                     games.sortedBy { it.title.lowercase() }
@@ -488,7 +488,7 @@ class HomeLibraryDelegate @Inject constructor(
         }
         return true
     }
-    private fun updatePinnedGames(pinId: Long, games: List<Game>) {
+    suspend fun loadGamesForPinnedCollection(pinId: Long, games: List<GameEntity>) {
         val gameUis = games.toUis()
         _state.update { state ->
             state.copy(
