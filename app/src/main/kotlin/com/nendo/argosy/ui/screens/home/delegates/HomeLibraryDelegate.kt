@@ -565,11 +565,11 @@ class HomeLibraryDelegate @Inject constructor(
                 RefreshResult(gameUis.map { it.id }, isEmpty = gameUis.isEmpty())
             }
             is HomeRow.PinnedRegular -> {
-                toUi(currentRow.pinId)
+                loadGamesForPinnedCollection(currentRow.pinId)
                 RefreshResult((_state.value.pinnedGames[currentRow.pinId] ?: emptyList()).map { it.id })
             }
             is HomeRow.PinnedVirtual -> {
-                toUi(currentRow.pinId)
+                loadGamesForPinnedCollection(currentRow.pinId)
                 RefreshResult((_state.value.pinnedGames[currentRow.pinId] ?: emptyList()).map { it.id })
             }
             HomeRow.ContinueWatching, HomeRow.NextUp, is HomeRow.MediaLibrary ->
