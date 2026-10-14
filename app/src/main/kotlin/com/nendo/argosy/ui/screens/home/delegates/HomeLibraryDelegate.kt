@@ -412,16 +412,16 @@ class HomeLibraryDelegate @Inject constructor(
         val generation = platformLoadGeneration.incrementAndGet()
         val prefs = preferencesRepository.userPreferences.first()
         val isCarousel = prefs.homeLayout.selected.name == "CAROUSEL"
-        val alphabeticalSort = isCarousel && prefs.homeLayout.carousel.alphabeticalSort
+        val alphabeticalSort = prefs.homeLayout.carousel.alphabeticalSort
         val showViewAllTile = prefs.homeLayout.carousel.showViewAllTile
+        val showsEveryGame = prefs.homeLayout.showsEveryGame
 
-        // Carousel needs every game loaded whenever Alphabetical is on, or when View All tile is off
-        val carouselWantsAll = isCarousel && (alphabeticalSort || !showViewAllTile)
-        val showsEveryGame = prefs.homeLayout.showsEveryGame || carouselWantsAll
+        // Loader must fetch full list whenever we need A-Z sorting or full library
+        val loaderNeedsAll = showsEveryGame || alphabeticalSort || (isCarousel && !showViewAllTile)
 
         platformGameLoader.load(
             platformId = platform.id,
-            showsEveryGame = showsEveryGame,
+            showsEveryGame = loaderNeedsAll,
             installedOnly = prefs.installedOnlyHome,
             publishLeadingPage = (_state.value.platformItemsFor != platform.id) && !alphabeticalSort,
             toUi = { game, art -> game.toUi(art) },
@@ -442,8 +442,7 @@ class HomeLibraryDelegate @Inject constructor(
                 )
             }
         )
-    }
-
+    } 
     private fun publishPlatformItems(
         platform: HomePlatformUi,
         games: List<HomeGameUi>,
