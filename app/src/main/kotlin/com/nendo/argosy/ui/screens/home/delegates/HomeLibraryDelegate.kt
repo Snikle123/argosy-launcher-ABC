@@ -411,7 +411,7 @@ class HomeLibraryDelegate @Inject constructor(
     suspend fun loadPlatformGames(platform: HomePlatformUi) {
         val generation = platformLoadGeneration.incrementAndGet()
         val prefs = preferencesRepository.userPreferences.first()
-        val isCarousel = prefs.homeLayout.selected == HomeLayoutKind.CAROUSEL
+        val isCarousel = prefs.homeLayout.selected.name == "CAROUSEL"
         val alphabeticalSort = isCarousel && prefs.homeLayout.carousel.alphabeticalSort
         val showViewAllTile = prefs.homeLayout.carousel.showViewAllTile
 
@@ -488,7 +488,16 @@ class HomeLibraryDelegate @Inject constructor(
         }
         return true
     }
-    suspend fun loadGamesForPinnedCollection(pinId: Long, games: List<GameEntity>) {
+        suspend fun loadGamesForPinnedCollection(pinId: Long) {
+        val pinned = _state.value.pinnedCollections.find { it.id == pinId } ?: return
+        var games = getGamesForPinnedCollectionUseCase(pinned).first()
+        if (discoverGamesIfNeeded(games)) {
+            games = getGamesForPinnedCollectionUseCase(pinned).first()
+        }
+        val installedOnly = preferencesRepository.userPreferences.first().installedOnlyHome
+        if (installedOnly) {
+            games = filterPlayable(games)
+        }
         val gameUis = games.toUis()
         _state.update { state ->
             state.copy(
@@ -497,7 +506,7 @@ class HomeLibraryDelegate @Inject constructor(
             )
         }
     }
-
+ 
     suspend fun refreshCurrentRow(currentRow: HomeRow, focusedGameId: Long?): RefreshResult {
         return when (currentRow) {
             HomeRow.Favorites -> {
@@ -556,11 +565,11 @@ class HomeLibraryDelegate @Inject constructor(
                 RefreshResult(gameUis.map { it.id }, isEmpty = gameUis.isEmpty())
             }
             is HomeRow.PinnedRegular -> {
-                loadGamesForPinnedCollection(currentRow.pinId)
+                toUi(currentRow.pinId)
                 RefreshResult((_state.value.pinnedGames[currentRow.pinId] ?: emptyList()).map { it.id })
             }
             is HomeRow.PinnedVirtual -> {
-                loadGamesForPinnedCollection(currentRow.pinId)
+                toUi(currentRow.pinId)
                 RefreshResult((_state.value.pinnedGames[currentRow.pinId] ?: emptyList()).map { it.id })
             }
             HomeRow.ContinueWatching, HomeRow.NextUp, is HomeRow.MediaLibrary ->
