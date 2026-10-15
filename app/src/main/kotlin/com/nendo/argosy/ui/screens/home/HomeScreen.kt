@@ -877,7 +877,7 @@ fun HomeScreen(
                                 items = rememberHomeCarouselItems(
                                     items = uiState.currentItems,
                                     rowKey = uiState.currentRow.toString(),
-                                    repairedCoverPaths = uiState.repairedCoverPaths
+                                    repairedCoverPaths = uiState.repairedCoverPaths,
                                     alphabeticalSort = !uiState.autoGridConfig.showAllGames,
                                     showViewAllTile = !uiState.autoGridConfig.showAllGames
                                 ),
