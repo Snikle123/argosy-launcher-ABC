@@ -878,6 +878,8 @@ fun HomeScreen(
                                     items = uiState.currentItems,
                                     rowKey = uiState.currentRow.toString(),
                                     repairedCoverPaths = uiState.repairedCoverPaths
+                                    alphabeticalSort = !uiState.autoGridConfig.showAllGames,
+                                    showViewAllTile = !uiState.autoGridConfig.showAllGames
                                 ),
                                 focusedIndex = uiState.focusedGameIndex,
                                 config = uiState.autoGridConfig,
