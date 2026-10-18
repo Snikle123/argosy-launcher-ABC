@@ -42,6 +42,7 @@ import com.nendo.argosy.domain.model.MediaTilePlayback
 import com.nendo.argosy.ui.components.AutoGridMove
 import com.nendo.argosy.ui.components.autoGridMove
 import com.nendo.argosy.ui.screens.home.delegates.GameMenuAction
+import com.nendo.argosy.ui.screens.home.delegates.HomeDockDelegate
 import com.nendo.argosy.ui.screens.home.delegates.HomeDownloadDelegate
 import com.nendo.argosy.ui.screens.home.delegates.HomeGameMenuDelegate
 import com.nendo.argosy.ui.screens.home.delegates.HomeInputActions
@@ -97,7 +98,8 @@ class HomeViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val gameRepository: GameRepository,
     private val displayAffinityHelper: com.nendo.argosy.util.DisplayAffinityHelper,
-    private val emulatorLaunchTargetResolver: com.nendo.argosy.ui.screens.common.EmulatorLaunchTargetResolver,
+    private val gameStartRouter: com.nendo.argosy.ui.screens.common.GameStartRouter,
+    private val configureEmulatorUseCase: com.nendo.argosy.domain.usecase.game.ConfigureEmulatorUseCase,
     private val appShortcutActions: com.nendo.argosy.ui.screens.common.AppShortcutActions,
     private val preferencesRepository: UserPreferencesRepository,
     private val notificationManager: NotificationManager,
@@ -119,6 +121,7 @@ class HomeViewModel @Inject constructor(
     val gameMenuDelegate: HomeGameMenuDelegate,
     val mediaDelegate: HomeMediaDelegate,
     val tilePickerDelegate: HomeTilePickerDelegate,
+    private val dockDelegate: HomeDockDelegate,
     private val steamContentManager: com.nendo.argosy.data.steam.SteamContentManager,
     private val steamDownloadPromptController: com.nendo.argosy.data.steam.SteamDownloadPromptController,
     private val appsRepository: com.nendo.argosy.data.repository.AppsRepository,
@@ -139,8 +142,26 @@ class HomeViewModel @Inject constructor(
     private val siblingChoice: com.nendo.argosy.ui.screens.common.SiblingChoiceDelegate,
     private val showcaseSource: com.nendo.argosy.ui.common.PresentationShowcaseSource,
     private val quickNavigationSource: com.nendo.argosy.data.preferences.QuickNavigationSource,
-    private val firstFrameCache: HomeFirstFrameCache
+    private val firstFrameCache: HomeFirstFrameCache,
+    private val monthlyRecap: com.nendo.argosy.ui.components.recap.MonthlyRecapController
 ) : ViewModel(), HomeInputActions {
+
+    private val selectDoubleTap = com.nendo.argosy.ui.screens.home.delegates.SelectDoubleTap(
+        scope = viewModelScope,
+        windowMs = com.nendo.argosy.ui.theme.generated.InputTokens.Debounce.selectDoubleTapMs,
+        clock = android.os.SystemClock::uptimeMillis
+    )
+
+    override fun pressSelect(onSingle: () -> Unit) {
+        selectDoubleTap.press(onSingle = onSingle, onDouble = { monthlyRecap.openLastMonth() })
+    }
+
+    fun onHomeShown() = monthlyRecap.onHomeShown()
+
+    fun onHomeHidden() {
+        selectDoubleTap.cancel()
+        monthlyRecap.onHomeHidden()
+    }
 
     val quickNavigationEnabled: StateFlow<Boolean> get() = quickNavigationSource.enabled
 
@@ -216,6 +237,7 @@ class HomeViewModel @Inject constructor(
             )
         },
         raGamePickerEntries = { query -> libraryDelegate.searchRaCompatibleForTiles(query) },
+        onOpenOnScreen = { target, screen -> openTileOnScreen(target, screen) },
         read = { _uiState.value.customGrid },
         write = { transform -> _uiState.update { it.copy(customGrid = transform(it.customGrid)) } }
     )
@@ -229,6 +251,9 @@ class HomeViewModel @Inject constructor(
     private val achievementRefetchThresholdMs = 5 * 60 * 1000L
     private var currentBorderStyle: BoxArtBorderStyle = BoxArtBorderStyle.SOLID
     private var lastShowsEveryGame: Boolean? = null
+    val dockReorder: StateFlow<com.nendo.argosy.ui.components.DockReorderSession?> = dockDelegate.reorder
+
+    fun createDockReorderInputHandler(isRtl: Boolean): InputHandler = dockDelegate.createInputHandler(isRtl)
 
     init {
         modalResetSignal.signal.onEach {
@@ -262,6 +287,7 @@ class HomeViewModel @Inject constructor(
             onFavoritesRefreshed = { libraryDelegate.loadFavorites() }
         )
         observeBackgroundSettings()
+        observeDockApps()
         observeGradientChanges()
         observeSyncOverlay()
         observePlatformChanges()
@@ -456,8 +482,7 @@ class HomeViewModel @Inject constructor(
         autoGridConfig = prefs.homeLayout.autoGrid,
         boxArt3d = prefs.homeLayout.boxArt3d,
         customGridConfig = prefs.homeLayout.customGrid,
-        layoutKind = prefs.homeLayout.selected,
-        homeApps = prefs.secondaryHomeApps.toList()
+        layoutKind = prefs.homeLayout.selected
     )
 
     private fun saveCurrentState() {
@@ -692,11 +717,13 @@ class HomeViewModel @Inject constructor(
         libraryDelegate.observeRecentlyPlayedChanges(viewModelScope) { validated ->
             _uiState.update { state ->
                 val newState = state.copy(recentGames = validated)
-                if (state.currentRow == HomeRow.Continue && validated.isEmpty()) {
-                    val newRow = newState.availableRows.firstOrNull() ?: HomeRow.Continue
-                    newState.copy(currentRow = newRow, focusedGameIndex = 0)
-                } else {
-                    newState
+                when {
+                    state.currentRow != HomeRow.Continue -> newState
+                    validated.isEmpty() -> {
+                        val newRow = newState.availableRows.firstOrNull() ?: HomeRow.Continue
+                        newState.copy(currentRow = newRow, focusedGameIndex = 0)
+                    }
+                    else -> newState.keepingFocusOn(state.focusedGame?.id)
                 }
             }
             refreshTileGamesAndFeatures()
@@ -890,16 +917,23 @@ class HomeViewModel @Inject constructor(
     private fun appBarSlotCount(): Int =
         _uiState.value.homeApps.size + 1
 
-    private fun appBarIsDrawn(): Boolean =
+    override fun appBarIsDrawn(): Boolean =
         DualScreenManagerHolder.instance?.presentationShowsHints?.value == true
 
     override fun focusAppBar(): Boolean {
         if (!appBarIsDrawn()) return false
-        _uiState.update { it.copy(appBarFocused = true, appBarIndex = 0) }
+        _uiState.update { it.copy(appBarFocused = true, appBarIndex = it.appBarIndex.coerceIn(-1, it.homeApps.size)) }
         return true
     }
 
+    fun cancelAppBarReorder() = dockDelegate.cancelReorder()
+
+    private fun observeDockApps() {
+        dockDelegate.observe(viewModelScope) { apps -> _uiState.update { it.withDockApps(apps) } }
+    }
+
     override fun releaseAppBar() {
+        cancelAppBarReorder()
         _uiState.update { it.copy(appBarFocused = false, appBarToolsOpen = false) }
     }
 
@@ -909,6 +943,7 @@ class HomeViewModel @Inject constructor(
     }
 
     override fun activateAppBarSlot() {
+        if (dockDelegate.isReordering()) return
         if (!appBarIsDrawn()) {
             releaseAppBar()
             return
@@ -1433,7 +1468,30 @@ class HomeViewModel @Inject constructor(
     fun tileMenuActions(): List<com.nendo.argosy.ui.components.CustomTileMenuAction> =
         _uiState.value.customGrid.menuActions
 
-    override fun openTileMenu() = customGrid.openMenu()
+    override fun openTileMenu() = customGrid.openMenu(tileLaunchScreens())
+
+    private fun tileLaunchScreens(): List<com.nendo.argosy.ui.components.AppMenuRow.OpenOnScreen> {
+        val state = _uiState.value
+        if (state.customGrid.isEditing) return emptyList()
+        val launchable = when (val target = state.customGrid.focusedTile?.target) {
+            is HomeTileTargetRef.App -> true
+            is HomeTileTargetRef.Game -> state.tileGames[target.gameId]?.isDownloaded == true
+            else -> false
+        }
+        if (!launchable) return emptyList()
+        return launchableScreens().takeIf { it.size > 1 }.orEmpty()
+    }
+
+    private fun openTileOnScreen(
+        target: HomeTileTargetRef,
+        screen: com.nendo.argosy.ui.components.AppMenuRow.OpenOnScreen
+    ) {
+        when (target) {
+            is HomeTileTargetRef.App -> launchApp(target.packageName, pinnedScreenKey = screen.screenKey)
+            is HomeTileTargetRef.Game -> playGameOnDisplay(target.gameId, screen.displayId)
+            else -> Unit
+        }
+    }
 
     override fun closeTileMenu() = customGrid.closeMenu()
 
@@ -1558,12 +1616,12 @@ class HomeViewModel @Inject constructor(
             if (pinnedScreenKey != null) {
                 preferencesRepository.setAppDisplayTarget(packageName, pinnedScreenKey)
             }
-            val dsm = DualScreenManagerHolder.instance
+            val prefs = preferencesRepository.preferences.first()
             val options = displayAffinityHelper.getAppLaunchOptions(
-                preferredScreenKey = pinnedScreenKey
-                    ?: preferencesRepository.preferences.first().appDisplayTargets[packageName],
-                rolesSwapped = dsm?.isRolesSwapped?.value == true,
-                occupiedDisplayId = dsm?.emulatorDisplayId
+                preferredScreenKey = pinnedScreenKey ?: prefs.appDisplayTargets[packageName],
+                rolesSwapped = sessionStateStore.isRolesSwapped(),
+                occupiedDisplayId = DualScreenManagerHolder.instance?.emulatorDisplayId,
+                defaultTarget = prefs.appsDisplayTarget
             )
             _events.emit(HomeEvent.LaunchIntent(intent, options))
         }
@@ -1571,14 +1629,22 @@ class HomeViewModel @Inject constructor(
 
     override fun openAppBarAppMenu(): Boolean {
         val state = _uiState.value
-        val packageName = state.appDrawer?.focusedPackage
-            ?: state.homeApps.getOrNull(state.appBarIndex)
-            ?: return false
+        val packageName = state.appDrawer?.focusedPackage ?: return false
         return openAppMenuFor(packageName)
     }
 
-    private fun openAppMenuFor(packageName: String): Boolean {
-        val screens = DualScreenManagerHolder.instance
+    override fun openDockAppMenu(): Boolean {
+        if (dockDelegate.isReordering()) return false
+        val state = _uiState.value
+        val packageName = state.homeApps.getOrNull(state.appBarIndex) ?: return false
+        return openDockAppMenuFor(packageName)
+    }
+
+    fun openDockAppMenuFor(packageName: String): Boolean =
+        openAppMenuFor(packageName, reorderable = _uiState.value.homeApps.size > 1)
+
+    private fun launchableScreens(): List<com.nendo.argosy.ui.components.AppMenuRow.OpenOnScreen> =
+        DualScreenManagerHolder.instance
             ?.focusableDisplays()
             ?.map { screen ->
                 com.nendo.argosy.ui.components.AppMenuRow.OpenOnScreen(
@@ -1588,7 +1654,17 @@ class HomeViewModel @Inject constructor(
                 )
             }
             .orEmpty()
+
+    private fun openAppMenuFor(packageName: String, reorderable: Boolean = false): Boolean {
+        val screens = launchableScreens()
         val rows = buildList<com.nendo.argosy.ui.components.AppMenuRow> {
+            if (reorderable) {
+                add(
+                    com.nendo.argosy.ui.components.AppMenuRow.Action(
+                        com.nendo.argosy.ui.components.AppContextMenuItem.REORDER
+                    )
+                )
+            }
             if (screens.size > 1) addAll(screens)
             add(
                 com.nendo.argosy.ui.components.AppMenuRow.Action(
@@ -1643,6 +1719,7 @@ class HomeViewModel @Inject constructor(
             is com.nendo.argosy.ui.components.AppMenuRow.OpenOnScreen ->
                 launchApp(packageName, pinnedScreenKey = row.screenKey)
             is com.nendo.argosy.ui.components.AppMenuRow.Action -> when (row.item) {
+                com.nendo.argosy.ui.components.AppContextMenuItem.REORDER -> startDockReorder(packageName)
                 com.nendo.argosy.ui.components.AppContextMenuItem.TOGGLE_SECONDARY_HOME ->
                     viewModelScope.launch { appShortcutActions.togglePinned(packageName) }
                 com.nendo.argosy.ui.components.AppContextMenuItem.TOGGLE_VISIBILITY ->
@@ -1658,6 +1735,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private fun startDockReorder(packageName: String) {
+        val index = _uiState.value.homeApps.indexOf(packageName)
+        if (index < 0) return
+        _uiState.update { it.copy(appBarFocused = true, appBarIndex = index) }
+        dockDelegate.startReorder(packageName)
+    }
+
     override fun dismissAppBarAppMenu() {
         if (_uiState.value.appBarMenu == null) return
         _uiState.update { it.copy(appBarMenu = null) }
@@ -1665,7 +1749,7 @@ class HomeViewModel @Inject constructor(
 
     override fun openAppDrawer() {
         if (_uiState.value.appDrawer != null) return
-        _uiState.update { it.copy(appDrawer = AppDrawerState()) }
+        _uiState.update { it.copy(appDrawer = AppDrawerState(), appBarToolsOpen = false) }
         viewModelScope.launch {
             val apps = appsRepository.getInstalledApps()
                 .map { com.nendo.argosy.ui.components.AppDrawerEntry(it.packageName, it.label) }
@@ -1863,7 +1947,8 @@ class HomeViewModel @Inject constructor(
         val state = _uiState.value
         if (index < 0 || index >= state.currentItems.size) return
 
-        if (index != state.focusedGameIndex) {
+        if (state.appBarFocused || index != state.focusedGameIndex) {
+            releaseAppBar()
             setFocusIndex(index)
             return
         }
@@ -1884,6 +1969,7 @@ class HomeViewModel @Inject constructor(
     fun handleItemLongPress(index: Int) {
         val state = _uiState.value
         if (index < 0 || index >= state.currentItems.size) return
+        releaseAppBar()
         val item = state.currentItems[index]
         if (item is HomeRowItem.Media) {
             if (index != state.focusedGameIndex) {
@@ -1936,32 +2022,34 @@ class HomeViewModel @Inject constructor(
             gameId = gameId,
             channelName = channelName,
             allowVariantPrompt = false,
-            onLaunch = { intent ->
-                viewModelScope.launch {
-                    val options = emulatorLaunchTargetResolver.launchOptionsFor(gameId)
-                    _events.emit(HomeEvent.LaunchIntent(intent, options))
-                }
-            }
+            onLaunch = { intent -> gameStartRouter.start(gameId, intent) }
         )
     }
 
     private fun playGameOnDisplay(gameId: Long, displayId: Int) {
         videoPreviewDelegate.deactivateVideoPreview()
         saveCurrentState()
+        rememberGameScreen(gameId, displayId)
         gameLaunchDelegate.launchGame(
             scope = viewModelScope,
             gameId = gameId,
             allowVariantPrompt = false,
             onLaunch = { intent ->
-                viewModelScope.launch {
-                    val options = emulatorLaunchTargetResolver.launchOptionsFor(
-                        gameId = gameId,
-                        overrideDisplayId = displayId
-                    )
-                    _events.emit(HomeEvent.LaunchIntent(intent, options))
-                }
+                gameStartRouter.start(gameId = gameId, intent = intent, overrideDisplayId = displayId)
             }
         )
+    }
+
+    private fun rememberGameScreen(gameId: Long, displayId: Int) {
+        val rolesSwapped = sessionStateStore.isRolesSwapped()
+        val target = gameDisplayTargetFor(
+            displayId = displayId,
+            roleDisplayIds = displayAffinityHelper.getRoleDisplayIds(rolesSwapped),
+            appScreenDisplayId = displayAffinityHelper.appScreenDisplayId(rolesSwapped)
+        ) ?: return
+        viewModelScope.launch {
+            configureEmulatorUseCase.setDisplayTargetForGame(gameId, target.name)
+        }
     }
 
     override fun toggleFavorite(gameId: Long) {
@@ -1983,6 +2071,13 @@ class HomeViewModel @Inject constructor(
 
     fun removeFromHome(gameId: Long) {
         gameMenuDelegate.removeFromHome(viewModelScope, gameId) { refreshCurrentRowInternal() }
+    }
+
+    fun removeFromLibrary(gameId: Long) {
+        gameMenuDelegate.removeFromLibrary(viewModelScope, gameId) {
+            libraryDelegate.invalidateRecentGamesCache()
+            refreshCurrentRowInternal()
+        }
     }
 
     fun refreshGameData(gameId: Long) {
@@ -2119,6 +2214,10 @@ class HomeViewModel @Inject constructor(
                 toggleGameMenu()
                 removeFromHome(action.gameId)
             }
+            is GameMenuAction.RemoveFromLibrary -> {
+                toggleGameMenu()
+                removeFromLibrary(action.gameId)
+            }
             is GameMenuAction.Hide -> {
                 toggleGameMenu()
                 hideGame(action.gameId)
@@ -2218,7 +2317,8 @@ class HomeViewModel @Inject constructor(
     // --- Public API: Video Preview ---
 
     fun startVideoPreviewLoading(videoId: String) = videoPreviewDelegate.startVideoPreviewLoading(videoId)
-    fun activateVideoPreview() = videoPreviewDelegate.activateVideoPreview()
+    fun activateVideoPreview(videoId: String, blocked: Boolean, isResumed: Boolean) =
+        videoPreviewDelegate.activateVideoPreview(videoId, blocked, isResumed)
     fun cancelVideoPreviewLoading() = videoPreviewDelegate.cancelVideoPreviewLoading()
     fun deactivateVideoPreview() = videoPreviewDelegate.deactivateVideoPreview()
 
@@ -2250,6 +2350,7 @@ class HomeViewModel @Inject constructor(
         syncDelegate.refreshFavoritesIfConnected(viewModelScope) {
             libraryDelegate.loadFavorites()
         }
+        syncDelegate.pullPlaySessionsIfDue()
         viewModelScope.launch {
             libraryDelegate.refreshRecommendationsIfNeeded()
             syncDelegate.checkForChangelog()
@@ -2263,14 +2364,16 @@ class HomeViewModel @Inject constructor(
         onGameSelect: (Long) -> Unit,
         onNavigateToDefault: () -> Unit,
         onDrawerToggle: () -> Unit,
-        onScrollOverflow: ((Int) -> Boolean)? = null
+        onScrollOverflow: ((Int) -> Boolean)? = null,
+        dockIsRtl: Boolean = false
     ): InputHandler = HomeInputHandler(
         actions = this,
         isDefaultView = isDefaultView,
         onGameSelect = onGameSelect,
         onNavigateToDefault = onNavigateToDefault,
         onDrawerToggle = onDrawerToggle,
-        onScrollOverflow = onScrollOverflow
+        onScrollOverflow = onScrollOverflow,
+        dockIsRtl = dockIsRtl
     )
 
     // --- HomeInputActions Implementation ---

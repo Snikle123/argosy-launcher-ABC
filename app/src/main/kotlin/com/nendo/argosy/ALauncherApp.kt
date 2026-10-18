@@ -151,10 +151,22 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
     lateinit var siblingGroupDownloadObserver: com.nendo.argosy.data.repository.SiblingGroupDownloadObserver
 
     @Inject
+    lateinit var raPatchDownloadObserver: com.nendo.argosy.data.repository.RAPatchDownloadObserver
+
+    @Inject
+    lateinit var raRepository: com.nendo.argosy.data.repository.RetroAchievementsRepository
+
+    @Inject
     lateinit var variantFileCleanup: com.nendo.argosy.data.emulator.VariantFileCleanup
 
     @Inject
     lateinit var lockScreenArtManager: com.nendo.argosy.data.wallpaper.LockScreenArtManager
+
+    @Inject
+    lateinit var iconPackRepository: com.nendo.argosy.data.iconpack.IconPackRepository
+
+    @Inject
+    lateinit var homeAppAvailability: com.nendo.argosy.util.HomeAppAvailability
 
     private val quayPassForegroundObserver = object : androidx.lifecycle.DefaultLifecycleObserver {
         override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
@@ -168,6 +180,7 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
         appScope.launch { com.nendo.argosy.util.RootShell.isAvailable }
         appScope.launch { socialSyncCoordinator.discardQueueWithoutSocialAccount() }
         appScope.launch { variantFileCleanup.runOnce() }
+        appScope.launch { homeAppAvailability.applyAtStartup() }
         UpdateCheckWorker.schedule(this)
         SaveSyncWorker.schedule(this)
         SocialSyncWorker.schedule(this)
@@ -182,6 +195,12 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
         pushInstallCoordinator.start()
         siblingGroupRepository.start()
         siblingGroupDownloadObserver.start()
+        raPatchDownloadObserver.start()
+        appScope.launch {
+            if (raRepository.isLoggedIn()) {
+                com.nendo.argosy.data.sync.RAPatchBackfillWorker.schedule(this@ArgosyApp)
+            }
+        }
         lockScreenArtManager.start()
         appScope.launch {
             val storedOverride = builtinPrefs.getArchitectureOverride().first()
@@ -194,7 +213,6 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
                 }
             }
             coreManager.migrateAbiIfNeeded()
-            coreManager.checkAndUpdateCoresIfDue()
             compatCoreCache.evictStale()
         }
         appScope.launch {
@@ -249,7 +267,7 @@ class ArgosyApp : Application(), Configuration.Provider, ImageLoaderFactory {
         return ImageLoader.Builder(this)
             .okHttpClient(okHttpClient)
             .components {
-                add(AppIconFetcher.Factory(packageManager))
+                add(AppIconFetcher.Factory(packageManager, iconPackRepository))
                 add(coil.decode.SvgDecoder.Factory())
             }
             .crossfade(true)

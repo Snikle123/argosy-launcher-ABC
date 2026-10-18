@@ -57,10 +57,7 @@
     <string name="dual_companion_saves_dirty">Datos de guardado nuevos</string>
     <string name="dual_companion_saves_synced">Partidas guardadas sincronizadas</string>
 
-    <string name="dual_companion_app_bar_add_description">Agregar app</string>
     <string name="dual_companion_app_drawer_title">Todas las apps</string>
-    <string name="dual_companion_app_bar_media_to_library_description">Volver a la biblioteca</string>
-    <string name="dual_companion_app_bar_media_to_player_description">Viendo ahora</string>
     <string name="dual_companion_app_bar_keyboard_description">Teclado</string>
     <string name="dual_companion_app_bar_swap_description">Intercambiar pantallas</string>
     <string name="dual_companion_app_bar_focus_description">Enviar la entrada a una pantalla</string>
@@ -499,4 +496,5 @@
     <string name="dual_showcase_played">%1$s jugadas</string>
     <string name="dual_showcase_journey_header">Tu progreso</string>
     <string name="dual_showcase_journey_main">Historia principal %1$s</string>
+    <string name="dual_showcase_completionist">Completista %1$s</string>
 </resources>

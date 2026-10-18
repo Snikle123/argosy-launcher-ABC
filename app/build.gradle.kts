@@ -34,8 +34,8 @@ android {
         applicationId = "com.argosy.launcher"
         minSdk = 26
         targetSdk = 35
-        versionCode = 354
-        versionName = "2.20.5"
+        versionCode = 358
+        versionName = "2.24.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -69,6 +69,7 @@ android {
         )
         buildConfigField("int", "DOLPHIN_SYS_VERSION", "2")
         buildConfigField("int", "PPSSPP_SYS_VERSION", "1")
+        buildConfigField("int", "ARMSX2_SYS_VERSION", "2")
     }
 
     signingConfigs {
@@ -122,10 +123,6 @@ android {
         )
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -145,6 +142,9 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
         }
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     testOptions {
@@ -153,6 +153,12 @@ android {
 
     sourceSets {
         getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
@@ -170,6 +176,8 @@ composeCompiler {
         )
     }
     featureFlags.add(org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag.IntrinsicRemember.disabled())
+    featureFlags.add(org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag.OptimizeNonSkippingGroups.disabled())
+    featureFlags.add(org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag.PausableComposition.disabled())
     if (project.hasProperty("composeMetrics")) {
         val dir = layout.buildDirectory.dir("compose_metrics")
         metricsDestination.set(dir)
@@ -245,6 +253,8 @@ dependencies {
     // Hilt
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    ksp(libs.kotlin.metadata.jvm)
+    annotationProcessor(libs.kotlin.metadata.jvm)
     implementation(libs.hilt.navigation.compose)
 
     // Room
@@ -275,7 +285,7 @@ dependencies {
     implementation(libs.coil.svg)
 
     // QR code generation + scanning
-    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.zxing:core:3.5.4")
     implementation(libs.bundles.camerax)
 
     // Discord Social SDK (optional AAR -- place in app/libs/)
@@ -318,7 +328,7 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation("net.java.dev.jna:jna:5.14.0")
-    testImplementation("org.json:json:20240303")
+    testImplementation("org.json:json:20260522")
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

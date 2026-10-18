@@ -61,8 +61,19 @@ internal class InterfaceSectionInput(
             InterfaceItem.CompactFooter -> return toggleLeftRight(direction, state.display.compactFooter) {
                 viewModel.setCompactFooter(it)
             }
+            InterfaceItem.HideSystemNavigationBar ->
+                return toggleLeftRight(direction, state.display.hideSystemNavigationBar) {
+                    viewModel.setHideSystemNavigationBar(it)
+                }
+            InterfaceItem.HideSystemStatusBar ->
+                return toggleLeftRight(direction, state.display.hideSystemStatusBar) {
+                    viewModel.setHideSystemStatusBar(it)
+                }
             InterfaceItem.LockScreenArt -> return toggleLeftRight(direction, state.display.lockScreenArt) {
                 viewModel.setLockScreenArt(it)
+            }
+            InterfaceItem.HomeApp -> return toggleLeftRight(direction, state.display.homeAppAvailable) {
+                viewModel.setHomeAppAvailable(it)
             }
             InterfaceItem.StatusClock -> return toggleLeftRight(direction, state.display.showStatusClock) {
                 viewModel.setShowStatusClock(it)
@@ -72,6 +83,12 @@ internal class InterfaceSectionInput(
             }
             InterfaceItem.StatusNetwork -> return toggleLeftRight(direction, state.display.showStatusNetwork) {
                 viewModel.setShowStatusNetwork(it)
+            }
+            InterfaceItem.PreLaunchRecaps -> return toggleLeftRight(direction, state.display.preLaunchRecaps) {
+                viewModel.setPreLaunchRecaps(it)
+            }
+            InterfaceItem.MonthlyRecap -> return toggleLeftRight(direction, state.display.monthlyRecap) {
+                viewModel.setMonthlyRecap(it)
             }
             else -> {}
         }

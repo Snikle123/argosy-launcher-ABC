@@ -30,6 +30,9 @@ import com.nendo.argosy.ui.input.HapticPattern
 import com.nendo.argosy.ui.input.SoundFeedbackManager
 import com.nendo.argosy.core.input.SoundType
 import com.nendo.argosy.libretro.LaunchMode
+import com.nendo.argosy.libretro.LibretroActivity
+import com.nendo.argosy.core.input.controllerIdOf
+import com.nendo.argosy.core.input.isPhysicalGamepad
 import com.nendo.argosy.R
 import com.nendo.argosy.core.notification.NotificationManager
 import com.nendo.argosy.core.notification.NotificationText
@@ -120,7 +123,9 @@ class GameLaunchDelegate @Inject constructor(
     private val retroAchievementsRepository: com.nendo.argosy.data.repository.RetroAchievementsRepository,
     private val getUnifiedSavesUseCase: com.nendo.argosy.domain.usecase.save.GetUnifiedSavesUseCase,
     private val launchProgressTracker: LaunchProgressTracker,
-    private val resolveSnapshotConflict: com.nendo.argosy.domain.usecase.savechannel.ResolveSnapshotConflictUseCase
+    private val resolveSnapshotConflict: com.nendo.argosy.domain.usecase.savechannel.ResolveSnapshotConflictUseCase,
+    private val connectedControllerTracker: com.nendo.argosy.core.input.ConnectedControllerTracker,
+    private val preLaunchRecapStep: PreLaunchRecapStep
 ) {
     companion object {
         private const val EMULATOR_KILL_DELAY_MS = 500L
@@ -248,15 +253,20 @@ class GameLaunchDelegate @Inject constructor(
                     emuId?.let { EmulatorRegistry.getById(it) }?.launchConfig?.requiresEmulatorKill == true
                 } ?: false
 
+                val resolvedVariantId = variantResolver.resolveVariant(game)?.id
+
+                val canResume = !sessionRequiresKill && playSessionTracker.canResumeSession(gameId, resolvedVariantId)
+
+                if (!canResume && !preLaunchRecapStep.run(ticket, gameId, game.title)) {
+                    onLaunchFailed()
+                    return@launch
+                }
+
                 if (sessionRequiresKill) {
                     android.util.Log.d("GameLaunchDelegate", "Session requires emulator kill, ending before fresh launch")
                     endSessionAndAwaitConflictAnswer()
                     delay(EMULATOR_KILL_DELAY_MS)
                 }
-
-                val resolvedVariantId = variantResolver.resolveVariant(game)?.id
-
-                val canResume = !sessionRequiresKill && playSessionTracker.canResumeSession(gameId, resolvedVariantId)
 
                 var stoppedPackage: String? = null
                 if (!canResume && activeSession != null && !sessionRequiresKill) {
@@ -424,7 +434,7 @@ class GameLaunchDelegate @Inject constructor(
                     else -> null
                 }
 
-                val result = launchGameUseCase(gameId, discId, variantFileId = resolvedVariantId, allowVariantPrompt = allowVariantPrompt, prefetchedGame = game, origin = origin)
+                val result = launchGameUseCase(gameId, discId, variantFileId = resolvedVariantId, allowVariantPrompt = allowVariantPrompt, prefetchedGame = game, origin = origin, savesPrepared = true)
                 launched = dispatchPrimaryLaunchResult(result, channelName, discId, launchMode, origin, onLaunch, onLaunchFailed)
             } finally {
                 launchProgressTracker.finish(ticket, launched)
@@ -462,7 +472,7 @@ class GameLaunchDelegate @Inject constructor(
                     .filter { it.fileId == null || it.isDownloaded }
                     .sortedBy { com.nendo.argosy.data.model.VariantCategory.fromKey(it.category).sortOrder }
                 if (launchable.size <= 1) {
-                    val retry = launchGameUseCase(result.gameId, discId, allowVariantPrompt = false, origin = origin)
+                    val retry = launchGameUseCase(result.gameId, discId, allowVariantPrompt = false, origin = origin, savesPrepared = true)
                     return dispatchPrimaryLaunchResult(retry, channelName, discId, launchMode, origin, onLaunch, onLaunchFailed)
                 } else {
                     _variantPickerState.value = VariantPickerState(
@@ -538,6 +548,13 @@ class GameLaunchDelegate @Inject constructor(
     private fun applyLaunchExtras(intent: Intent, launchMode: LaunchMode?, origin: LaunchOrigin): Intent {
         if (launchMode != null) intent.putExtra(LaunchMode.EXTRA_LAUNCH_MODE, launchMode.name)
         if (origin != LaunchOrigin.INTERNAL) intent.putExtra(LaunchOrigin.EXTRA_LAUNCH_ORIGIN, origin.name)
+        if (intent.component?.className == LibretroActivity::class.java.name) {
+            connectedControllerTracker.activeDevice()
+                ?.takeIf { it.isPhysicalGamepad() }
+                ?.let { pad ->
+                    intent.putExtra(LibretroActivity.EXTRA_LAUNCH_CONTROLLER_ID, controllerIdOf(pad))
+                }
+        }
         return intent
     }
 
@@ -550,7 +567,8 @@ class GameLaunchDelegate @Inject constructor(
             val result = launchGameUseCase(
                 gameId = state.gameId,
                 selectedDiscPath = discPath,
-                origin = state.origin
+                origin = state.origin,
+                savesPrepared = true
             )
             when (result) {
                 is LaunchResult.Success -> {
@@ -578,9 +596,9 @@ class GameLaunchDelegate @Inject constructor(
 
         scope.launch {
             val result = if (variantFileId != null) {
-                launchGameUseCase(gameId = state.gameId, variantFileId = variantFileId, origin = state.origin)
+                launchGameUseCase(gameId = state.gameId, variantFileId = variantFileId, origin = state.origin, savesPrepared = true)
             } else {
-                launchGameUseCase(gameId = state.gameId, skipVariantPrompt = true, origin = state.origin)
+                launchGameUseCase(gameId = state.gameId, skipVariantPrompt = true, origin = state.origin, savesPrepared = true)
             }
             dispatchPrimaryLaunchResult(result, state.channelName, null, state.launchMode, state.origin, state.onLaunch, onFailed)
         }
@@ -601,7 +619,8 @@ class GameLaunchDelegate @Inject constructor(
             emulatorSaveConfigRepository.setMemcardPath(state.emulatorId, cardPath)
             val result = launchGameUseCase(
                 gameId = state.gameId,
-                origin = state.origin
+                origin = state.origin,
+                savesPrepared = true
             )
             when (result) {
                 is LaunchResult.Success -> {
@@ -642,6 +661,11 @@ class GameLaunchDelegate @Inject constructor(
             }
             var launched = false
             try {
+                val continuesPickedLaunch = selectedDiscPath != null || variantFileId != null || skipVariantPrompt
+                if (game != null && !continuesPickedLaunch && !preLaunchRecapStep.run(ticket, gameId, game.title)) {
+                    callbacks.onLaunchFailed()
+                    return@launch
+                }
                 val activeSession = playSessionTracker.activeSession.value
                 if (activeSession != null) {
                     android.util.Log.d("GameLaunchDelegate", "launchSimple: ending session for game ${activeSession.gameId} before fresh launch")

@@ -12,7 +12,6 @@ import com.nendo.argosy.data.emulator.SavePathRegistry
 import com.nendo.argosy.data.remote.jellyfin.JellyfinConnectionState
 import com.nendo.argosy.data.remote.romm.ConnectionState
 import com.nendo.argosy.libretro.LibretroCoreRegistry
-import com.nendo.argosy.core.input.ControllerDetector
 import com.nendo.argosy.core.input.DetectedLayout
 import com.nendo.argosy.ui.screens.settings.delegates.StorageSettingsDelegate
 import com.nendo.argosy.util.AppPaths
@@ -348,6 +347,7 @@ internal fun routeObservePlatforms(vm: SettingsViewModel) {
                     )
                 }
                 routeLoadControllerPorts(vm)
+                routeRefreshBuiltinGraphics(vm)
             }
     }
 }
@@ -543,6 +543,7 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
         val availableSpace = vm.gameRepository.getAvailableStorageBytes()
         val box3dCapableGames = vm.gameRepository.countBox3dCapableGames()
         val libraryRegionOptions = vm.gameRepository.getDistinctRegions()
+        val iconPacks = vm.iconPackRepository.installedPacks()
 
         vm.displayDelegate.updateState(DisplayState(
             themeMode = prefs.themeMode,
@@ -577,11 +578,20 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             homeBackgroundMode = prefs.homeBackgroundMode,
             homeLayout = prefs.homeLayout,
             presentationStyle = prefs.presentationStyle,
+            presentationBackgroundBlur = prefs.presentationBackgroundBlur,
             box3dCapableGames = box3dCapableGames,
             libraryBoxArt3d = prefs.libraryBoxArt3d,
             useAccentColorFooter = prefs.useAccentColorFooter,
             compactFooter = prefs.compactFooter,
+            hideSystemNavigationBar = prefs.hideSystemNavigationBar,
+            hideSystemStatusBar = prefs.hideSystemStatusBar,
             lockScreenArt = prefs.lockScreenArt,
+            homeAppAvailable = prefs.homeAppAvailable,
+            isDefaultHome = vm.displayDelegate.isDefaultHome(),
+            preLaunchRecaps = prefs.preLaunchRecapsEnabled,
+            monthlyRecap = prefs.monthlyRecapEnabled,
+            iconPack = prefs.iconPack,
+            iconPacks = iconPacks,
             boxArtShape = prefs.boxArtShape,
             boxArtCornerRadius = prefs.boxArtCornerRadius,
             boxArtBorderThickness = prefs.boxArtBorderThickness,
@@ -632,13 +642,16 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             hasPhysicalSecondaryDisplay = vm.displayAffinityHelper.hasPhysicalSecondaryDisplay,
             dualScreenEnabled = prefs.dualScreenEnabled,
             displayRoleOverride = prefs.displayRoleOverride,
+            gamesLaunchTarget = prefs.gamesDisplayTarget,
+            appsLaunchTarget = prefs.appsDisplayTarget,
             installedOnlyHome = prefs.installedOnlyHome,
             showStatusClock = prefs.showStatusClock,
             showStatusBattery = prefs.showStatusBattery,
             showStatusNetwork = prefs.showStatusNetwork
         ))
+        routeRefreshLaunchTargets(vm)
 
-        val detectionResult = ControllerDetector.detectFromActiveGamepad()
+        val detectionResult = vm.controlsDelegate.detectActiveController()
         val detectedLayoutName = when (detectionResult.layout) {
             DetectedLayout.XBOX -> "Xbox"
             DetectedLayout.NINTENDO -> "Nintendo"
@@ -661,7 +674,8 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
             openNavigationKey = prefs.openNavigationKey,
             openQuickPanelKey = prefs.openQuickPanelKey,
             navRingRoutes = com.nendo.argosy.ui.navigation.NavRing.resolve(prefs.navRingRoutes),
-            quickNavigation = prefs.quickNavigation
+            quickNavigation = prefs.quickNavigation,
+            navBarAutoHide = prefs.navBarAutoHide
         ))
         vm.controlsDelegate.refreshUsageStatsPermission()
 
@@ -684,9 +698,7 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
         ))
         vm.ambientAudioDelegate.refreshMusicDirPath(vm.viewModelScope)
 
-        val filteredPlatformConfigs = platformConfigs
-            .filter { it.platform.slug != "steam" }
-            .sortedByDescending { it.platform.syncEnabled }
+        val filteredPlatformConfigs = platformConfigs.inPlatformsListOrder { it.platform }
 
         val currentEmulatorState = vm.emulatorDelegate.state.value
         val anchoredPlatformId = vm._uiState.value.emulators.platforms
@@ -842,7 +854,9 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
                 effectiveSaveConfigIdMc?.let { vm.emulatorDelegate.getEmulatorSaveConfig(it) }
             } else null
 
-            val folderMemcards = if (config.platform.slug == "ps2" && emulatorId != null) {
+            val folderMemcards = if (
+                config.platform.slug == "ps2" && emulatorId != null && emulatorId != EmulatorRegistry.BUILTIN_ID
+            ) {
                 vm.emulatorDelegate.listPs2FolderMemcardsForEmulator(
                     emulatorId = emulatorId,
                     emulatorPackage = config.effectiveEmulatorPackage
@@ -919,9 +933,11 @@ internal fun routeLoadSettings(vm: SettingsViewModel) {
                     statePath = refreshSettings.customStatePath
                         ?: AppPaths.libretroStatesDir(vm.context.filesDir).absolutePath,
                     isCustomSavePath = refreshSettings.customSavePath != null,
-                    isCustomStatePath = refreshSettings.customStatePath != null
+                    isCustomStatePath = refreshSettings.customStatePath != null,
+                    gpuDriver = refreshSettings.gpuDriver
                 ),
                 builtinControls = BuiltinControlsState(
+                    controllerOrderCount = it.builtinControls.controllerOrderCount,
                     rumbleEnabled = refreshSettings.rumbleEnabled,
                     limitHotkeysToPlayer1 = refreshSettings.limitHotkeysToPlayer1,
                     speedrunStartOnReset = refreshSettings.speedrunStartOnReset,

@@ -68,18 +68,36 @@ class InterfaceCompactFooterLayoutTest {
     }
 
     @Test
-    fun `the screen reads general, then screens, then the status bar`() {
+    fun `the screen reads general, then screens, then the status bar, then recaps`() {
         val order = listOf(
             InterfaceItem.Language,
             InterfaceItem.ControllerGrip,
             InterfaceItem.HomeScreen,
             InterfaceItem.BoxArt,
             InterfaceItem.StatusClock,
-            InterfaceItem.StatusNetwork
+            InterfaceItem.StatusNetwork,
+            InterfaceItem.PreLaunchRecaps,
+            InterfaceItem.MonthlyRecap
         ).map { interfaceFocusIndexOf(it, layoutState) }
 
         assertEquals(order.sorted(), order)
-        assertEquals(3, interfaceSections(layoutState).size)
+        assertEquals(4, interfaceSections(layoutState).size)
+    }
+
+    @Test
+    fun `the system bar rows follow compact footer in the general group`() {
+        val order = listOf(
+            InterfaceItem.CompactFooter,
+            InterfaceItem.HideSystemNavigationBar,
+            InterfaceItem.HideSystemStatusBar,
+            InterfaceItem.ControllerGrip
+        ).map { interfaceFocusIndexOf(it, layoutState) }
+
+        assertEquals(order.first() + 1, order[1])
+        assertEquals(order[1] + 1, order[2])
+        assertEquals(order[2] + 1, order[3])
+        assertEquals(InterfaceItem.CompactFooter.section, InterfaceItem.HideSystemNavigationBar.section)
+        assertEquals(InterfaceItem.CompactFooter.section, InterfaceItem.HideSystemStatusBar.section)
     }
 
     @Test

@@ -27,8 +27,10 @@ interface HomeInputActions {
     fun confirmGameMenuSelection(onGameSelect: (Long) -> Unit)
     fun previousRow()
     fun nextRow()
+    fun appBarIsDrawn(): Boolean
     fun focusAppBar(): Boolean
     fun openAppBarAppMenu(): Boolean
+    fun openDockAppMenu(): Boolean
     fun moveAppBarAppMenu(delta: Int)
     fun confirmAppBarAppMenu()
     fun dismissAppBarAppMenu()
@@ -134,6 +136,12 @@ interface HomeInputActions {
     fun openMediaResumePrompt(): Boolean
     fun openFocusedMediaDetail()
     fun refreshMediaRails()
+
+    /**
+     * Runs [onSingle] once the double-tap window passes with no second press; a second press
+     * inside the window opens last month's recap and drops [onSingle].
+     */
+    fun pressSelect(onSingle: () -> Unit)
 }
 
 class HomeInputHandler(
@@ -142,7 +150,8 @@ class HomeInputHandler(
     private val onGameSelect: (Long) -> Unit,
     private val onNavigateToDefault: () -> Unit,
     private val onDrawerToggle: () -> Unit,
-    private val onScrollOverflow: ((direction: Int) -> Boolean)? = null
+    private val onScrollOverflow: ((direction: Int) -> Boolean)? = null,
+    private val dockIsRtl: Boolean = false
 ) : InputHandler {
 
     private val focusPicker: com.nendo.argosy.DualScreenManager?
@@ -207,6 +216,7 @@ class HomeInputHandler(
             isGrid(state) -> gridMove(GridDirection.UP)
             else -> {
                 if (onScrollOverflow?.invoke(-1) == true) return InputResult.HANDLED
+                if (actions.appBarIsDrawn()) return InputResult.handled(SoundType.BOUNDARY)
                 actions.previousRow()
                 InputResult.handled(SoundType.SECTION_CHANGE)
             }
@@ -263,7 +273,7 @@ class HomeInputHandler(
             isGrid(state) -> gridMove(GridDirection.DOWN)
             else -> {
                 if (onScrollOverflow?.invoke(1) == true) return InputResult.HANDLED
-                if (state.currentRow == state.availableRows.lastOrNull() && actions.focusAppBar()) {
+                if (actions.focusAppBar()) {
                     return InputResult.handled(SoundType.SECTION_CHANGE)
                 }
                 actions.nextRow()
@@ -277,7 +287,7 @@ class HomeInputHandler(
         if (actions.uiState.value.appDrawer != null) return InputResult.handled(SoundType.BOUNDARY)
         if (focusPicker != null) return InputResult.handled(SoundType.BOUNDARY)
         if (actions.uiState.value.appBarFocused) {
-            actions.moveAppBarFocus(-1)
+            actions.moveAppBarFocus(if (dockIsRtl) 1 else -1)
             return InputResult.HANDLED
         }
         if (actions.uiState.value.customGrid.engagedTileId != null) {
@@ -310,7 +320,7 @@ class HomeInputHandler(
         if (actions.uiState.value.appDrawer != null) return InputResult.handled(SoundType.BOUNDARY)
         if (focusPicker != null) return InputResult.handled(SoundType.BOUNDARY)
         if (actions.uiState.value.appBarFocused) {
-            actions.moveAppBarFocus(1)
+            actions.moveAppBarFocus(if (dockIsRtl) -1 else 1)
             return InputResult.HANDLED
         }
         if (actions.uiState.value.customGrid.engagedTileId != null) {
@@ -435,10 +445,14 @@ class HomeInputHandler(
     }
 
     private fun customMove(direction: GridDirection2D): InputResult {
-        val moved = when (actions.uiState.value.customGrid.editMode) {
+        val mode = actions.uiState.value.customGrid.editMode
+        val moved = when (mode) {
             TileEditMode.MOVE -> actions.moveFocusedTile(direction)
             TileEditMode.RESIZE -> actions.resizeFocusedTile(direction)
             TileEditMode.NONE -> actions.moveCustomGridFocus(direction)
+        }
+        if (!moved && mode == TileEditMode.NONE && direction == GridDirection2D.DOWN && actions.focusAppBar()) {
+            return InputResult.handled(SoundType.SECTION_CHANGE)
         }
         return if (moved) InputResult.HANDLED else InputResult.handled(SoundType.BOUNDARY)
     }
@@ -453,12 +467,24 @@ class HomeInputHandler(
         when (actions.moveGridFocus(direction)) {
             is AutoGridMove.Focus -> InputResult.HANDLED
             AutoGridMove.PreviousSection -> {
-                actions.previousRow()
-                InputResult.handled(SoundType.SECTION_CHANGE)
+                if (actions.appBarIsDrawn()) {
+                    InputResult.handled(SoundType.BOUNDARY)
+                } else {
+                    actions.previousRow()
+                    InputResult.handled(SoundType.SECTION_CHANGE)
+                }
             }
             AutoGridMove.NextSection -> {
-                actions.nextRow()
-                InputResult.handled(SoundType.SECTION_CHANGE)
+                if (actions.appBarIsDrawn()) {
+                    if (direction == GridDirection.DOWN && actions.focusAppBar()) {
+                        InputResult.handled(SoundType.SECTION_CHANGE)
+                    } else {
+                        InputResult.handled(SoundType.BOUNDARY)
+                    }
+                } else {
+                    actions.nextRow()
+                    InputResult.handled(SoundType.SECTION_CHANGE)
+                }
             }
             AutoGridMove.None -> {
                 if (direction == GridDirection.DOWN) actions.focusAppBar()
@@ -633,14 +659,21 @@ class HomeInputHandler(
     }
 
     /**
-     * Opens the focused game's menu, or swaps which display holds which role when the player chose
-     * a press of Select for the swap. Holding A reaches that menu on every device, which keeps the
-     * actions on a controller when a second screen claims the press.
+     * Opens the focused game's menu, or swaps the display roles when Select is the swap gesture.
+     * With no Home overlay open, that action waits out the double-tap window and a second press
+     * inside it opens last month's recap.
      */
     override fun onSelect(): InputResult {
         if (selectHeldByOverlay()) return InputResult.HANDLED
+        if (homeOverlayOpen(actions.uiState.value)) return singleSelect()
+        actions.pressSelect(onSingle = { deferredSelect() })
+        return InputResult.HANDLED
+    }
+
+    private fun singleSelect(): InputResult {
         val state = actions.uiState.value
         if (com.nendo.argosy.ui.dualscreen.selectSwapsRoles()) return InputResult.UNHANDLED
+        if (state.appBarFocused) return InputResult.HANDLED
         if (isCustomGrid(state)) return InputResult.UNHANDLED
         if (state.isMediaRow) return InputResult.HANDLED
         if (state.focusedGame != null) {
@@ -648,6 +681,23 @@ class HomeInputHandler(
         }
         return InputResult.HANDLED
     }
+
+    private fun deferredSelect() {
+        if (selectHeldByOverlay()) return
+        if (com.nendo.argosy.ui.dualscreen.selectSwapsRoles()) {
+            com.nendo.argosy.DualScreenManagerHolder.instance?.swapRoles()
+            return
+        }
+        singleSelect()
+    }
+
+    private fun homeOverlayOpen(state: HomeUiState): Boolean =
+        state.showGameMenu ||
+            state.showTilePicker ||
+            state.customGrid.isEditing ||
+            state.customGrid.isMediaSetupOpen ||
+            state.customGrid.isFeatureSetupOpen ||
+            gridOverlayOpen(state)
 
     override fun onLongSelect(): InputResult =
         if (selectHeldByOverlay()) InputResult.HANDLED else InputResult.UNHANDLED
@@ -670,13 +720,9 @@ class HomeInputHandler(
         state.focusedItem is HomeRowItem.Media
 
     /**
-     * Holding confirm opens the menu for whatever is under the cursor: the tile menu on the grid,
-     * where arranging is its first entry, and the game menu on a row. A menu that names its
-     * actions is reachable in a way a hold that silently starts a drag never was.
-     *
-     * Committing on the second hold still matches the press that started an arrange. On a title
-     * the hold asks whether to start over instead, since a plain press already resumes, and a
-     * title with nothing stored is played rather than asked about twice.
+     * Holding confirm opens the menu under the cursor: the tile menu on the grid, the game menu on
+     * a row, the app menu in the app drawer and on the dock, where Reorder is the menu's first entry.
+     * A second hold commits an arrange; on a title with something stored it asks to start over.
      */
     override fun onLongConfirm(): InputResult {
         val state = actions.uiState.value
@@ -689,7 +735,7 @@ class HomeInputHandler(
             }
         }
         if (state.appBarFocused) {
-            return if (actions.openAppBarAppMenu()) {
+            return if (actions.openDockAppMenu()) {
                 InputResult.handled(SoundType.OPEN_MODAL)
             } else {
                 InputResult.handled(SoundType.BOUNDARY)
@@ -726,6 +772,7 @@ class HomeInputHandler(
     override fun onSecondaryAction(): InputResult {
         if (appOverlayOpen()) return InputResult.HANDLED
         val state = actions.uiState.value
+        if (state.appBarFocused) return InputResult.HANDLED
         if (state.customGrid.mediaSetup != null || state.customGrid.featureSetup != null) return InputResult.HANDLED
         if (state.showTilePicker) {
             actions.toggleTilePickerSearch()
@@ -767,10 +814,12 @@ class HomeInputHandler(
     override fun onNextSection(): InputResult = bumper(1)
 
     private fun trigger(delta: Int): InputResult =
-        shiftRowOrPage(delta, movesRows = actions.quickNavigation()) { actions.jumpTilePickerLetter(delta > 0) }
+        shiftRowOrPage(delta, movesRows = actions.appBarIsDrawn() || actions.quickNavigation()) {
+            actions.jumpTilePickerLetter(delta > 0)
+        }
 
     private fun bumper(delta: Int): InputResult =
-        if (actions.quickNavigation()) {
+        if (actions.appBarIsDrawn() || actions.quickNavigation()) {
             bumperInModal(delta)
         } else {
             shiftRowOrPage(delta, movesRows = true) { actions.cycleTilePickerCategory(delta) }
@@ -816,6 +865,7 @@ class HomeInputHandler(
     override fun onContextMenu(): InputResult {
         if (appOverlayOpen()) return InputResult.HANDLED
         val state = actions.uiState.value
+        if (state.appBarFocused) return InputResult.HANDLED
         if (state.customGrid.engagedTileId != null) {
             actions.openEngagedFullscreen()
             return InputResult.HANDLED

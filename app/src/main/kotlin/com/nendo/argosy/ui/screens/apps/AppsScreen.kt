@@ -3,6 +3,8 @@ package com.nendo.argosy.ui.screens.apps
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,6 +73,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.nendo.argosy.R
 import com.nendo.argosy.ui.coil.AppIconData
 import com.nendo.argosy.ui.input.LocalInputDispatcher
+import com.nendo.argosy.ui.input.ModalPresenceEffect
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.ui.components.AppContextMenuItem
 import com.nendo.argosy.ui.components.AppMenuRow
@@ -111,7 +114,9 @@ fun AppsScreen(
                         } else {
                             context.startActivity(event.intent)
                         }
-                    } catch (_: Exception) {
+                    } catch (error: Exception) {
+                        Log.e("AppsScreen", "Failed to launch ${event.intent.component}", error)
+                        Toast.makeText(context, R.string.library_apps_launch_failed, Toast.LENGTH_SHORT).show()
                     }
                 }
                 is AppsEvent.OpenAppInfo -> {
@@ -284,11 +289,7 @@ fun AppsScreen(
                             if (selectSwapsRoles) R.string.library_apps_hint_open_hold_options else R.string.library_apps_hint_open
                         ),
                         InputButton.B to stringResource(R.string.library_apps_hint_back),
-                        InputButton.Y to if (uiState.hasSecondaryDisplay) {
-                            stringResource(R.string.library_apps_hint_open_on_top)
-                        } else {
-                            stringResource(R.string.library_apps_hint_reorder)
-                        },
+                        InputButton.Y to stringResource(R.string.library_apps_hint_reorder),
                         InputButton.SELECT to stringResource(
                             when (selectSwapMode) {
                                 com.nendo.argosy.data.preferences.SelectSwapMode.TAP ->
@@ -332,6 +333,7 @@ fun AppsScreen(
         }
 
         if (uiState.showContextMenu) {
+            ModalPresenceEffect()
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -370,6 +372,7 @@ fun AppsScreen(
                                 isAppHidden = uiState.focusedApp?.isHidden ?: false,
                                 isOnHome = uiState.focusedApp?.isOnHome ?: false,
                                 isOnSecondaryHome = uiState.focusedApp?.isOnSecondaryHome ?: false,
+                                reorderLabel = R.string.library_apps_menu_reorder,
                                 onClick = {
                                     viewModel.selectContextMenuItem(index)
                                 }

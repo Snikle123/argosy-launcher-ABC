@@ -49,6 +49,7 @@ import com.nendo.argosy.ui.common.labelRes
 import com.nendo.argosy.ui.common.reportTitleIdRecheck
 import com.nendo.argosy.ui.common.isSteamGame
 import com.nendo.argosy.ui.common.toHomeGameUi
+import com.nendo.argosy.util.openStorageAccessSettings
 import com.nendo.argosy.ui.screens.common.CollectionModalDelegate
 import com.nendo.argosy.ui.screens.common.GameActionsDelegate
 import com.nendo.argosy.ui.screens.common.GameLaunchDelegate
@@ -114,7 +115,7 @@ class GameDetailViewModel @Inject constructor(
     private val repairImageCacheUseCase: RepairImageCacheUseCase,
     private val modalResetSignal: ModalResetSignal,
     private val titleIdDownloadObserver: com.nendo.argosy.data.emulator.TitleIdDownloadObserver,
-    private val emulatorLaunchTargetResolver: com.nendo.argosy.ui.screens.common.EmulatorLaunchTargetResolver,
+    private val gameStartRouter: com.nendo.argosy.ui.screens.common.GameStartRouter,
     private val gameDocumentLoader: com.nendo.argosy.data.repository.GameDocumentLoader,
     private val documentHighlightStore: com.nendo.argosy.data.repository.DocumentHighlightStore,
     val pickerModalDelegate: PickerModalDelegate,
@@ -245,15 +246,9 @@ class GameDetailViewModel @Inject constructor(
         modalResetSignal.signal.onEach { resetAllModals() }.launchIn(viewModelScope)
 
         viewModelScope.launch {
-            var publishedArt: Triple<Long, String?, String?>? = null
-            _uiState.collect { state ->
-                val game = state.game
-                val art = game?.let { Triple(it.id, it.coverPath, it.backgroundPath) }
-                if (art != publishedArt) {
-                    publishedArt = art
-                    publishCompanionDetail(game)
-                }
-            }
+            _uiState.map { state -> state.game?.toCompanionDetail(state.friendsActivity) }
+                .distinctUntilChanged()
+                .collect { publishCompanionDetail(it) }
         }
 
         viewModelScope.launch {
@@ -469,7 +464,6 @@ class GameDetailViewModel @Inject constructor(
                 igdbId?.let { activity[it.toInt()] }.orEmpty()
             }.distinctUntilChanged().collect { friends ->
                 _uiState.update { it.copy(friendsActivity = friends) }
-                publishCompanionDetail(_uiState.value.game)
             }
         }
 
@@ -1256,13 +1250,20 @@ class GameDetailViewModel @Inject constructor(
     ): com.nendo.argosy.ui.screens.common.LaunchResultCallbacks =
         com.nendo.argosy.ui.screens.common.LaunchResultCallbacks(
             onLaunch = { intent ->
-                viewModelScope.launch {
-                    val options = emulatorLaunchTargetResolver.launchOptionsFor(
-                        gameId = currentGameId,
-                        overrideDisplayId = overrideDisplayId
-                    )
-                    _launchEvents.emit(LaunchEvent.LaunchIntent(intent, options))
-                }
+                val notices = notificationManager
+                gameStartRouter.start(
+                    gameId = currentGameId,
+                    intent = intent,
+                    overrideDisplayId = overrideDisplayId,
+                    onFailure = { e ->
+                        notices.showError(
+                            NotificationText.Res(
+                                R.string.gamedetail_notice_launch_failed,
+                                listOf(e.message ?: "null")
+                            )
+                        )
+                    }
+                )
             },
             onSelectDisc = { discs -> pickerModalDelegate.showDiscPicker(discs) },
             onSelectVariant = { variants -> pickerModalDelegate.showVariantPicker(variants) },
@@ -1293,6 +1294,7 @@ class GameDetailViewModel @Inject constructor(
             isRommGame = state.game?.isRommGame == true,
             isAndroidApp = state.game?.isAndroidApp == true,
             isSteamGame = state.game?.isSteamGame == true,
+            canRemoveFromLibrary = state.game?.canRemoveFromLibrary == true,
             canManageSaves = state.game?.canManageSaves == true,
             canManageStates = state.game?.canManageStates == true,
             isMultiDisc = state.game?.isMultiDisc == true,
@@ -1690,6 +1692,23 @@ class GameDetailViewModel @Inject constructor(
         viewModelScope.launch { perGameSettingsDelegate.cycleExtension(currentGameId, direction) }
     }
 
+    fun cyclePerGameGpuDriver(direction: Int) {
+        viewModelScope.launch { perGameSettingsDelegate.cycleGpuDriver(currentGameId, direction) }
+    }
+
+    fun cyclePerGameBackend(direction: Int) {
+        viewModelScope.launch { perGameSettingsDelegate.cycleBackend(currentGameId, direction) }
+    }
+
+    fun openPerGameGpuDriverPicker() = perGameSettingsDelegate.openGpuDriverPicker()
+
+    fun dismissPerGameGpuDriverPicker() = perGameSettingsDelegate.dismissGpuDriverPicker()
+
+    fun selectPerGameGpuDriverEntry(index: Int) {
+        val entry = perGameSettingsDelegate.state.value.gpuDriverPicker.getOrNull(index) ?: return
+        viewModelScope.launch { perGameSettingsDelegate.applyGpuDriverEntry(currentGameId, entry) }
+    }
+
     fun openPerGameMemcardPicker() = perGameSettingsDelegate.openMemcardPicker()
 
     fun dismissPerGameMemcardPicker() = perGameSettingsDelegate.dismissMemcardPicker()
@@ -1722,6 +1741,8 @@ class GameDetailViewModel @Inject constructor(
             PerGameSettingsRow.MEMCARD -> openPerGameMemcardPicker()
             PerGameSettingsRow.DISPLAY_TARGET -> cyclePerGameDisplayTarget(1)
             PerGameSettingsRow.EXTENSION -> cyclePerGameExtension(1)
+            PerGameSettingsRow.BACKEND -> cyclePerGameBackend(1)
+            PerGameSettingsRow.GPU_DRIVER -> openPerGameGpuDriverPicker()
             PerGameSettingsRow.PLATFORM_SETTINGS -> {
                 dismissPerGameSettings()
                 _uiState.value.game?.platformId?.let(onNavigateToPlatformSettings)
@@ -1736,6 +1757,8 @@ class GameDetailViewModel @Inject constructor(
             PerGameSettingsRow.SAVE_PATH -> perGameSettingsDelegate.movePathButton(-direction)
             PerGameSettingsRow.DISPLAY_TARGET -> cyclePerGameDisplayTarget(direction)
             PerGameSettingsRow.EXTENSION -> cyclePerGameExtension(direction)
+            PerGameSettingsRow.BACKEND -> cyclePerGameBackend(direction)
+            PerGameSettingsRow.GPU_DRIVER -> cyclePerGameGpuDriver(direction)
             else -> {}
         }
     }
@@ -1967,7 +1990,7 @@ class GameDetailViewModel @Inject constructor(
         moreOptionsDelegate.reset()
         viewModelScope.launch {
             val builtinEnabled = preferencesRepository.userPreferences.first().builtinLibretroEnabled
-            pickerModalDelegate.showEmulatorPicker(game.platformSlug, builtinEnabled)
+            pickerModalDelegate.showEmulatorPicker(game.id, game.platformId, game.platformSlug, builtinEnabled)
         }
     }
 
@@ -2391,11 +2414,7 @@ class GameDetailViewModel @Inject constructor(
 
     fun openAllFilesAccessSettings() {
         _uiState.update { it.copy(showPermissionModal = false) }
-        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-            data = android.net.Uri.parse("package:${context.packageName}")
-            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        context.startActivity(intent)
+        context.openStorageAccessSettings()
     }
 
     fun disableSaveSync() {
@@ -2413,18 +2432,15 @@ class GameDetailViewModel @Inject constructor(
         soundManager.play(SoundType.CLOSE_MODAL)
     }
 
-    private fun publishCompanionDetail(game: GameDetailUi?) {
+    private fun publishCompanionDetail(detail: com.nendo.argosy.ui.dualscreen.CompanionDetail?) {
         if (!isDescribing) return
         val dsm = com.nendo.argosy.DualScreenManagerHolder.instance ?: return
-        if (game == null) {
+        if (detail == null) {
             dsm.releaseSlot(companionOwner)
         } else {
             dsm.presentSlot(
                 companionOwner,
-                com.nendo.argosy.ui.dualscreen.PresentationSlot.GameHero(
-                    game,
-                    _uiState.value.friendsActivity
-                )
+                com.nendo.argosy.ui.dualscreen.PresentationSlot.Detail(detail)
             )
         }
     }
@@ -2432,7 +2448,8 @@ class GameDetailViewModel @Inject constructor(
     fun republishCompanionDetail() {
         isDescribing = true
         heldForTimeline = false
-        publishCompanionDetail(_uiState.value.game)
+        val state = _uiState.value
+        publishCompanionDetail(state.game?.toCompanionDetail(state.friendsActivity))
     }
 
     /**

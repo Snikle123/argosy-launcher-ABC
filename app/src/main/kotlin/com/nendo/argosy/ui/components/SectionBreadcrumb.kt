@@ -83,7 +83,7 @@ fun SectionBreadcrumb(
     val fadeWidth = Dimens.spacingMd
     val uiScale = LocalUiScale.current.scale
     val navigationMaxWidth = ComponentDefaults.FrostedSurface.navigationMaxWidthDp.dp * uiScale
-    val navigationSlotWidth = minimumTouchTarget * uiScale
+    val navigationSlotWidth = minimumTouchTarget
     val navigationHeight = frostedVisualChromeHeight
     val selectedTextStyle = chromeTextStyle(
         MaterialTheme.typography.titleMedium,
@@ -134,7 +134,7 @@ fun SectionBreadcrumb(
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
+            horizontalArrangement = Arrangement.spacedBy(Dimens.spacingXs)
         ) {
             Row(
                 modifier = Modifier
@@ -143,7 +143,7 @@ fun SectionBreadcrumb(
                     .sizeIn(minWidth = navigationSlotWidth, minHeight = navigationHeight)
                     .padding(Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.End
             ) {
                 Icon(
                     painter = InputIcons.TriggerLeft,
@@ -291,7 +291,7 @@ fun SectionBreadcrumb(
                     .sizeIn(minWidth = navigationSlotWidth, minHeight = navigationHeight)
                     .padding(Dimens.spacingSm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Start
             ) {
                 Icon(
                     painter = InputIcons.TriggerRight,

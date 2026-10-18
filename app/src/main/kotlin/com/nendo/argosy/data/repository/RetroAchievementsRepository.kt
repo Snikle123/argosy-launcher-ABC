@@ -1,7 +1,6 @@
 package com.nendo.argosy.data.repository
 
 import android.content.Context
-import com.nendo.argosy.BuildConfig
 import com.nendo.argosy.data.local.dao.PendingSyncQueueDao
 import com.nendo.argosy.data.local.entity.AchievementEntity
 import com.nendo.argosy.data.local.entity.PendingSyncQueueEntity
@@ -9,8 +8,11 @@ import com.nendo.argosy.data.local.entity.SyncPriority
 import com.nendo.argosy.data.local.entity.SyncType
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.sync.AchievementPayload
-import com.nendo.argosy.data.remote.ra.RAAchievementPatch
+import com.nendo.argosy.data.sync.RAPatchBackfillWorker
 import com.nendo.argosy.data.remote.ra.RAApi
+import com.nendo.argosy.data.remote.ra.RAApiProvider
+import com.nendo.argosy.data.remote.ra.RAAwardResponse
+import com.nendo.argosy.data.remote.ra.RABaseResponse
 import com.nendo.argosy.data.remote.ra.RACredentials
 import com.nendo.argosy.data.remote.ra.RAPatchData
 import com.nendo.argosy.data.remote.romm.RomMAchievement
@@ -19,22 +21,21 @@ import com.nendo.argosy.util.Logger
 import com.nendo.argosy.util.parseTimestamp
 import com.squareup.moshi.Moshi
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.withLock
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.OkHttpClient
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
+import retrofit2.Response
 import java.security.MessageDigest
 import java.time.Instant
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "RetroAchievementsRepository"
 private const val UNLOCKS_COOLDOWN_MS = 5 * 60 * 1000L
 private const val WARNING_UNLOCK_ID = 101000001L
+private val RETRYABLE_HTTP_CODES = setOf(429, 502, 503, 504, 521, 522, 523, 524, 525)
+private val AUTH_HTTP_CODES = setOf(401, 403)
 const val RA_BADGE_BASE_URL = "https://media.retroachievements.org/Badge/"
 
 sealed class RALoginResult {
@@ -49,6 +50,17 @@ sealed class RAAwardResult {
     data object Queued : RAAwardResult()
 }
 
+/**
+ * Outcome of one `r=patch` request. [RetryLater] covers answers worth asking again later: no
+ * connection, an auth refusal, throttling and server errors. [Unavailable] covers everything else,
+ * including a signed-out device.
+ */
+sealed interface RAPatchFetchResult {
+    data class Fetched(val patchData: RAPatchData) : RAPatchFetchResult
+    data object RetryLater : RAPatchFetchResult
+    data object Unavailable : RAPatchFetchResult
+}
+
 @Singleton
 class RetroAchievementsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -57,54 +69,14 @@ class RetroAchievementsRepository @Inject constructor(
     private val gameDao: com.nendo.argosy.data.local.dao.GameDao,
     private val prefsRepository: UserPreferencesRepository,
     private val payloadCodec: com.nendo.argosy.data.sync.SyncPayloadCodec,
-    private val retroArchConfigParser: com.nendo.argosy.data.emulator.RetroArchConfigParser
+    private val retroArchConfigParser: com.nendo.argosy.data.emulator.RetroArchConfigParser,
+    private val richPresenceCapture: com.nendo.argosy.data.emulator.RichPresenceCapture,
+    private val apiProvider: RAApiProvider,
+    private val patchCacheStore: RAPatchCacheStore
 ) {
-    @Volatile private var cachedApi: RAApi? = null
-    @Volatile private var cachedBaseUrl: String? = null
+    private val errorBodyAdapter = Moshi.Builder().build().adapter(RABaseResponse::class.java)
 
-    private suspend fun api(): RAApi {
-        val baseUrl = resolveBaseUrl()
-        cachedApi?.let { if (cachedBaseUrl == baseUrl) return it }
-        return createApi(baseUrl).also {
-            cachedApi = it
-            cachedBaseUrl = baseUrl
-        }
-    }
-
-    private suspend fun resolveBaseUrl(): String {
-        val prefs = prefsRepository.userPreferences.first()
-        if (!prefs.raProxyEnabled) return RAApi.BASE_URL
-        return normalizeProxyBaseUrl(prefs.raProxyAddress) ?: RAApi.BASE_URL
-    }
-
-    private fun normalizeProxyBaseUrl(raw: String): String? {
-        val trimmed = raw.trim()
-        if (trimmed.isEmpty()) return null
-        val withScheme = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "http://$trimmed"
-        return withScheme.toHttpUrlOrNull()?.toString()
-    }
-
-    private fun createApi(baseUrl: String): RAApi {
-        val moshi = Moshi.Builder().build()
-
-        val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .header("User-Agent", "Argosy/${BuildConfig.VERSION_NAME} (Android ${android.os.Build.VERSION.RELEASE}) rcheevos/12.2.1")
-                    .build()
-                chain.proceed(request)
-            }
-            .build()
-
-        return Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .client(client)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
-            .build()
-            .create(RAApi::class.java)
-    }
+    private suspend fun api(): RAApi = apiProvider.api()
 
     /**
      * RomM user id that owns the achievement rows written right now, or
@@ -212,6 +184,7 @@ class RetroAchievementsRepository @Inject constructor(
             prefsRepository.setRACredentials(username, token)
             gameDao.clearAllAchievementsFetchedAt()
             Logger.info(TAG, "Login successful; cleared achievement-fetch timestamps")
+            RAPatchBackfillWorker.schedule(context)
             RALoginResult.Success(username)
         } catch (e: Exception) {
             Logger.error(TAG, "Login exception: ${e.message}")
@@ -320,15 +293,13 @@ class RetroAchievementsRepository @Inject constructor(
     }
 
     /**
-     * Submits only the rows queued by the account signed in now. RetroAchievements credentials are
-     * device-global and survive an account switch, so draining another RomM account's queued unlock
-     * would award it to whichever RA identity is currently configured - a different person's
-     * account, with the hardcore flag intact.
+     * Submits the signed-in account's queued unlocks. A row leaves the queue only when
+     * RetroAchievements accepts it, reports it already awarded, or rejects it definitively.
      */
     suspend fun submitPendingAchievements(): Int {
         val credentials = getCredentials() ?: return 0
         val activeOwnerId = activeOwnerUserId()
-        val pending = pendingSyncQueueDao.getRetryableBySyncType(SyncType.ACHIEVEMENT)
+        val pending = pendingSyncQueueDao.getUnsubmittedBySyncType(SyncType.ACHIEVEMENT)
             .filter { it.ownerUserId == null || it.ownerUserId == activeOwnerId }
         if (pending.isEmpty()) return 0
 
@@ -349,21 +320,34 @@ class RetroAchievementsRepository @Inject constructor(
                     validation = validation
                 )
 
-                val body = response.body()
-                val success = response.isSuccessful && body?.success == true
-                val alreadyHas = body?.error?.contains("already has", ignoreCase = true) == true
+                val success = response.isSuccessful && response.body()?.success == true
+                val serverError = serverErrorMessage(response)
+                val alreadyHas = serverError?.contains("already has", ignoreCase = true) == true
 
-                if (success || alreadyHas) {
-                    pendingSyncQueueDao.deleteById(entity.id)
-                    successCount++
-                    Logger.debug(TAG, "Pending achievement ${payload.achievementRaId} submitted")
-                } else {
-                    val error = body?.error ?: "HTTP ${response.code()}"
-                    pendingSyncQueueDao.markFailed(entity.id, error)
-                    Logger.warn(TAG, "Pending achievement ${payload.achievementRaId} retry: $error")
+                when {
+                    success || alreadyHas -> {
+                        pendingSyncQueueDao.deleteById(entity.id)
+                        successCount++
+                        Logger.debug(TAG, "Pending achievement ${payload.achievementRaId} submitted")
+                    }
+                    isDefinitiveRejection(response.code(), serverError) -> {
+                        pendingSyncQueueDao.deleteById(entity.id)
+                        Logger.warn(
+                            TAG,
+                            "Pending achievement ${payload.achievementRaId} rejected by RetroAchievements " +
+                                "(HTTP ${response.code()}): $serverError"
+                        )
+                    }
+                    else -> {
+                        val error = serverError ?: "HTTP ${response.code()}"
+                        pendingSyncQueueDao.recordRetryableFailure(entity.id, error)
+                        Logger.warn(TAG, "Pending achievement ${payload.achievementRaId} kept for retry: $error")
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                pendingSyncQueueDao.markFailed(entity.id, e.message ?: "Network error")
+                pendingSyncQueueDao.recordRetryableFailure(entity.id, e.message ?: "Network error")
                 Logger.error(TAG, "Pending achievement ${payload.achievementRaId} exception: ${e.message}")
             }
         }
@@ -371,6 +355,19 @@ class RetroAchievementsRepository @Inject constructor(
         Logger.info(TAG, "Submitted $successCount/${pending.size} pending achievements")
         return successCount
     }
+
+    private fun serverErrorMessage(response: Response<RAAwardResponse>): String? {
+        response.body()?.error?.takeIf { it.isNotBlank() }?.let { return it }
+        val errorBody = response.errorBody() ?: return null
+        return try {
+            errorBodyAdapter.fromJson(errorBody.string())?.error?.takeIf { it.isNotBlank() }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun isDefinitiveRejection(httpCode: Int, serverError: String?): Boolean =
+        serverError != null && httpCode !in RETRYABLE_HTTP_CODES && httpCode !in AUTH_HTTP_CODES
 
     data class RASessionResult(
         val success: Boolean,
@@ -432,15 +429,23 @@ class RetroAchievementsRepository @Inject constructor(
                 richPresence = richPresence
             )
 
-            response.isSuccessful && response.body()?.success == true
+            val accepted = response.isSuccessful && response.body()?.success == true
+            if (accepted && richPresence != null) {
+                richPresenceCapture.record(gameRaId, richPresence, Instant.now())
+            }
+            accepted
         } catch (e: Exception) {
             Logger.error(TAG, "Heartbeat exception: ${e.message}")
             false
         }
     }
 
-    suspend fun getGamePatchData(gameRaId: Long): RAPatchData? {
-        val credentials = getCredentials() ?: return null
+    /**
+     * Requests the achievement definitions for [gameRaId] (`r=patch`; never opens a session) and,
+     * when they arrive, overwrites the cached copy read by [getCachedPatchData].
+     */
+    suspend fun fetchPatchData(gameRaId: Long): RAPatchFetchResult {
+        val credentials = getCredentials() ?: return RAPatchFetchResult.Unavailable
 
         return try {
             val response = api().getGameInfo(
@@ -450,21 +455,41 @@ class RetroAchievementsRepository @Inject constructor(
             )
 
             val body = response.body()
-            if (response.isSuccessful && body?.success == true) {
-                body.patchData
-            } else {
-                handleAuthFailure(response.code(), body?.error, "getGamePatchData")
-                null
+            val patchData = body?.patchData
+            when {
+                response.isSuccessful && body?.success == true && patchData != null -> {
+                    patchCacheStore.write(gameRaId, activeOwnerUserId(), patchData, System.currentTimeMillis())
+                    RAPatchFetchResult.Fetched(patchData)
+                }
+                response.code() == 429 || response.code() >= 500 || response.code() in AUTH_HTTP_CODES -> {
+                    Logger.warn(TAG, "Patch fetch for $gameRaId deferred: HTTP ${response.code()}")
+                    handleAuthFailure(response.code(), body?.error, "fetchPatchData")
+                    RAPatchFetchResult.RetryLater
+                }
+                else -> {
+                    Logger.warn(TAG, "Patch fetch for $gameRaId failed: HTTP ${response.code()} ${body?.error}")
+                    handleAuthFailure(response.code(), body?.error, "fetchPatchData")
+                    RAPatchFetchResult.Unavailable
+                }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.error(TAG, "Get game info exception: ${e.message}")
-            null
+            RAPatchFetchResult.RetryLater
         }
     }
 
-    fun observePendingCount(): Flow<Int> = pendingSyncQueueDao.observePendingCountBySyncType(SyncType.ACHIEVEMENT)
+    /**
+     * The definitions the last successful [fetchPatchData] stored for [gameRaId] under the active
+     * account, or null when none were stored.
+     */
+    suspend fun getCachedPatchData(gameRaId: Long): RAPatchData? =
+        patchCacheStore.read(gameRaId, activeOwnerUserId())
 
-    suspend fun getPendingCount(): Int = pendingSyncQueueDao.countPendingBySyncType(SyncType.ACHIEVEMENT)
+    fun observePendingCount(): Flow<Int> = pendingSyncQueueDao.observeUnsubmittedCountBySyncType(SyncType.ACHIEVEMENT)
+
+    suspend fun getPendingCount(): Int = pendingSyncQueueDao.countUnsubmittedBySyncType(SyncType.ACHIEVEMENT)
 
     data class GameUnlocks(
         val unlockedIds: Set<Long>,
@@ -639,57 +664,79 @@ class RetroAchievementsRepository @Inject constructor(
             }
 
             Logger.debug(TAG, "fetchUnlocksFresh: calling RA Connect r=unlocks game=$gameRaId")
-            try {
-                val casualResponse = api().getUnlocks(
-                    username = credentials.username,
-                    token = credentials.token,
-                    gameId = gameRaId,
-                    hardcore = 0
-                )
-                val hardcoreResponse = api().getUnlocks(
-                    username = credentials.username,
-                    token = credentials.token,
-                    gameId = gameRaId,
-                    hardcore = 1
-                )
+            requestUnlocks(credentials, gameRaId, "fetchUnlocksFresh", requireSuccessBody = false)
+                ?.also { unlocksCache[gameRaId] = now to it }
+                ?: unlocksCache[gameRaId]?.second
+        }
+    }
 
-                if (!casualResponse.isSuccessful) {
-                    Logger.warn(TAG, "fetchUnlocksFresh: HTTP ${casualResponse.code()} for game $gameRaId")
-                    handleAuthFailure(casualResponse.code(), casualResponse.body()?.error, "fetchUnlocksFresh")
-                    return@withLock unlocksCache[gameRaId]?.second
-                }
+    /**
+     * The user's unlocked achievement ids for [gameRaId] as RA reports them right now, through the
+     * same read-only `r=unlocks` call as [fetchUnlocksFresh]. Never answers from the cache: null
+     * when not logged in, when either request fails, or when RA reports an error.
+     */
+    suspend fun fetchUnlocksSnapshot(gameRaId: Long): GameUnlocks? {
+        val credentials = getCredentials() ?: return null
+        val mutex = unlocksFetchMutexes.computeIfAbsent(gameRaId) { kotlinx.coroutines.sync.Mutex() }
+        return mutex.withLock {
+            val now = System.currentTimeMillis()
+            requestUnlocks(credentials, gameRaId, "fetchUnlocksSnapshot", requireSuccessBody = true)
+                ?.also { unlocksCache[gameRaId] = now to it }
+        }
+    }
 
-                if (!hardcoreResponse.isSuccessful) {
-                    Logger.warn(
-                        TAG,
-                        "fetchUnlocksFresh: hardcore HTTP ${hardcoreResponse.code()} for game $gameRaId"
-                    )
-                    handleAuthFailure(
-                        hardcoreResponse.code(),
-                        hardcoreResponse.body()?.error,
-                        "fetchUnlocksFresh"
-                    )
-                    return@withLock unlocksCache[gameRaId]?.second
-                }
+    private suspend fun requestUnlocks(
+        credentials: RACredentials,
+        gameRaId: Long,
+        caller: String,
+        requireSuccessBody: Boolean
+    ): GameUnlocks? {
+        return try {
+            val casualResponse = api().getUnlocks(
+                username = credentials.username,
+                token = credentials.token,
+                gameId = gameRaId,
+                hardcore = 0
+            )
+            val hardcoreResponse = api().getUnlocks(
+                username = credentials.username,
+                token = credentials.token,
+                gameId = gameRaId,
+                hardcore = 1
+            )
 
-                val casual = (casualResponse.body()?.userUnlocks ?: emptyList())
-                    .filter { it != WARNING_UNLOCK_ID }
-                    .toSet()
-                val hardcore = (hardcoreResponse.body()?.userUnlocks ?: emptyList())
-                    .filter { it != WARNING_UNLOCK_ID }
-                    .toSet()
-
-                val result = GameUnlocks(unlockedIds = casual, hardcoreUnlockedIds = hardcore)
-                unlocksCache[gameRaId] = now to result
-                Logger.info(
-                    TAG,
-                    "fetchUnlocksFresh: game=$gameRaId casual=${casual.size} hardcore=${hardcore.size}"
-                )
-                result
-            } catch (e: Exception) {
-                Logger.warn(TAG, "fetchUnlocksFresh exception for game $gameRaId: ${e.message}")
-                unlocksCache[gameRaId]?.second
+            if (!casualResponse.isSuccessful) {
+                Logger.warn(TAG, "$caller: HTTP ${casualResponse.code()} for game $gameRaId")
+                handleAuthFailure(casualResponse.code(), casualResponse.body()?.error, caller)
+                return null
             }
+
+            if (!hardcoreResponse.isSuccessful) {
+                Logger.warn(TAG, "$caller: hardcore HTTP ${hardcoreResponse.code()} for game $gameRaId")
+                handleAuthFailure(hardcoreResponse.code(), hardcoreResponse.body()?.error, caller)
+                return null
+            }
+
+            val bodiesSucceeded = casualResponse.body()?.success == true && hardcoreResponse.body()?.success == true
+            if (requireSuccessBody && !bodiesSucceeded) {
+                Logger.warn(TAG, "$caller: RA reported an error for game $gameRaId")
+                return null
+            }
+
+            val casual = (casualResponse.body()?.userUnlocks ?: emptyList())
+                .filter { it != WARNING_UNLOCK_ID }
+                .toSet()
+            val hardcore = (hardcoreResponse.body()?.userUnlocks ?: emptyList())
+                .filter { it != WARNING_UNLOCK_ID }
+                .toSet()
+
+            Logger.info(TAG, "$caller: game=$gameRaId casual=${casual.size} hardcore=${hardcore.size}")
+            GameUnlocks(unlockedIds = casual, hardcoreUnlockedIds = hardcore)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.warn(TAG, "$caller exception for game $gameRaId: ${e.message}")
+            null
         }
     }
 

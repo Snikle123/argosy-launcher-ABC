@@ -9,7 +9,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
@@ -22,7 +25,6 @@ import com.nendo.argosy.ui.theme.CustomFontFamilies
 import com.nendo.argosy.ui.theme.CustomFontLoader
 import com.nendo.argosy.ui.theme.ThemeState
 import com.nendo.argosy.ui.theme.toThemeState
-import com.nendo.argosy.ui.toScreenDimmerPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.Lifecycle
@@ -32,8 +34,6 @@ import com.nendo.argosy.DualScreenManagerHolder
 import com.nendo.argosy.core.game.AchievementUi
 import com.nendo.argosy.data.preferences.SessionStateStore
 import com.nendo.argosy.data.repository.AppsRepository
-import com.nendo.argosy.ui.ScreenDimmerPreferences
-import com.nendo.argosy.ui.components.ScreenDimmerOverlay
 import com.nendo.argosy.ui.dualscreen.CompanionDetail
 import com.nendo.argosy.ui.dualscreen.CompanionDetailScreen
 import com.nendo.argosy.ui.input.GamepadEvent
@@ -42,7 +42,7 @@ import com.nendo.argosy.ui.input.SelectModifier
 import com.nendo.argosy.ui.input.mapKeycodeToGamepadEvent
 import com.nendo.argosy.util.Logger
 import com.nendo.argosy.util.PermissionHelper
-import com.nendo.argosy.util.hideSystemBars
+import com.nendo.argosy.util.LauncherSystemBars
 import com.nendo.argosy.util.installImmersiveMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -60,6 +60,9 @@ class SecondaryHomeActivity :
 
     @javax.inject.Inject
     lateinit var gamepadInputHandler: com.nendo.argosy.ui.input.GamepadInputHandler
+
+    @javax.inject.Inject
+    lateinit var connectedControllerTracker: com.nendo.argosy.core.input.ConnectedControllerTracker
 
     private var languageTag: String = com.nendo.argosy.core.locale.LocaleHelper.SYSTEM_LANGUAGE_TAG
 
@@ -79,18 +82,13 @@ class SecondaryHomeActivity :
         )
     }
 
-    private var launchedExternalApp = false
-
     private var isInitialized by mutableStateOf(false)
     var isArgosyForeground by mutableStateOf(false)
         private set
     var isGameActive by mutableStateOf(false)
         private set
-    private var isWizardActive by mutableStateOf(false)
     private var currentChannelName by mutableStateOf<String?>(null)
     private var isHardcore by mutableStateOf(false)
-    var homeApps by mutableStateOf<List<String>>(emptyList())
-        private set
     private var companionAchievements by mutableStateOf<List<AchievementUi>>(emptyList())
     private var companionSessionTimer: CompanionSessionTimer? = null
     private var homeRestoreSettled = false
@@ -110,11 +108,20 @@ class SecondaryHomeActivity :
     private val selectModifier = SelectModifier()
 
     private var displayListener: DisplayManager.DisplayListener? = null
+    private val systemBars by lazy { LauncherSystemBars(window) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        installImmersiveMode()
+        installImmersiveMode { systemBars.visibility }
         keepAwakeWhileUserActive()
+
+        if (com.nendo.argosy.util.DesktopMode.isActive(this)) {
+            android.util.Log.i("SecondaryHome", "Samsung DeX active, releasing this display")
+            com.nendo.argosy.util.SecondaryHomeComponent.setEnabled(this, false)
+            CompanionGuardService.stop(this)
+            finish()
+            return
+        }
 
         val docked = com.nendo.argosy.util.DisplayAffinityHelper.dockedExternalDisplayId(this) != null
         if (!docked && !SessionStateStore(applicationContext).isDualScreenEnabled()) {
@@ -142,13 +149,12 @@ class SecondaryHomeActivity :
             )
             awaitSessionEnd()
         } else {
-            recoverThroughMainActivity()
+            recoverThroughArgosyActivity()
         }
 
         setContent {
             val themeState = remember { mutableStateOf(ThemeState()) }
             val customFonts = remember { mutableStateOf(CustomFontFamilies()) }
-            val screenDimmerPrefs = remember { mutableStateOf(ScreenDimmerPreferences()) }
             val statusBarItems = remember {
                 mutableStateOf(com.nendo.argosy.ui.components.StatusBarItems())
             }
@@ -157,7 +163,6 @@ class SecondaryHomeActivity :
                 dsm.preferencesRepository.userPreferences.collect { prefs ->
                     themeState.value = prefs.toThemeState()
                     customFonts.value = resolveCustomFonts(prefs.displayFontPath, prefs.bodyFontPath)
-                    screenDimmerPrefs.value = prefs.toScreenDimmerPreferences()
                     statusBarItems.value = com.nendo.argosy.ui.components.statusBarItemsOf(prefs)
                 }
             }
@@ -174,25 +179,15 @@ class SecondaryHomeActivity :
                             androidx.compose.runtime.derivedStateOf { state.value.isProcessing }
                         }
                     }
-                val lastUserActivityAtMs by dsm.lastUserActivityAtMs.collectAsState()
-                val mediaPlayback by dsm.mediaPlayback.collectAsState()
-                val dimmerPrefs = screenDimmerPrefs.value
-                val dimmerEnabled = dimmerPrefs.enabled &&
-                    !isGameActive && !isWizardActive && mediaPlayback == null
                 androidx.compose.runtime.CompositionLocalProvider(
                     com.nendo.argosy.ui.components.LocalArtworkScraping provides scrapingArtwork,
                     com.nendo.argosy.ui.components.LocalStatusBarItems provides statusBarItems.value
                 ) {
-                    com.nendo.argosy.ui.input.ProvideButtonGlyphs(dsm.preferencesRepository.userPreferences) {
-                        ScreenDimmerOverlay(
-                            enabled = dimmerEnabled,
-                            timeoutMs = dimmerPrefs.timeoutMinutes * 60_000L,
-                            dimLevel = dimmerPrefs.level / 100f,
-                            lastActivityAtMs = lastUserActivityAtMs,
-                            onWake = { dsm.notifyUserActivity("companionDimmerTap") }
-                        ) {
-                            CompanionRoleContent()
-                        }
+                    com.nendo.argosy.ui.input.ProvideButtonGlyphs(
+                        dsm.preferencesRepository.userPreferences,
+                        connectedControllerTracker.activeLayout
+                    ) {
+                        CompanionRoleContent()
                     }
                 }
             }
@@ -221,6 +216,7 @@ class SecondaryHomeActivity :
         androidx.compose.foundation.layout.Box(
             modifier = androidx.compose.ui.Modifier
                 .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.systemBars)
                 .focusRequester(presentationSink)
                 .focusable()
         ) {
@@ -231,7 +227,7 @@ class SecondaryHomeActivity :
     override fun onResume() {
         super.onResume()
         if (releaseUnsupportedDisplay()) return
-        window.hideSystemBars()
+        systemBars.apply()
         if (!::dsm.isInitialized) return
         val currentDsm = DualScreenManagerHolder.instance
         if (currentDsm != null && dsm !== currentDsm) {
@@ -239,7 +235,6 @@ class SecondaryHomeActivity :
             dsm = currentDsm
             initializeCompanion()
         }
-        launchedExternalApp = false
         dsm.notifyUserActivity("companionResume")
         syncFromSessionStore()
         dsm.onCompanionResumed()
@@ -247,7 +242,6 @@ class SecondaryHomeActivity :
 
     private fun syncFromSessionStore() {
         val store = dsm.sessionStateStore
-        store.setForeignAppOnSecondary(false)
         isGameActive = store.hasActiveSession()
         isHardcore = store.isHardcore()
         currentChannelName = store.getChannelName()
@@ -255,7 +249,10 @@ class SecondaryHomeActivity :
 
     override fun onStop() {
         super.onStop()
-        if (::dsm.isInitialized) dsm.onCompanionPaused()
+        gamepadInputHandler.resetStickMotion()
+        if (::dsm.isInitialized) {
+            dsm.onCompanionStopped(hostDisplayId(), isFinishing, isChangingConfigurations)
+        }
     }
 
     override fun finishCompanion() {
@@ -378,29 +375,30 @@ class SecondaryHomeActivity :
      * one a directly-delivered motion event gets.
      */
     override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
-        if (event.isFromSource(android.view.InputDevice.SOURCE_JOYSTICK) &&
-            ::dsm.isInitialized && !dsm.companionHoldsPrimary.value
-        ) {
+        val isJoystick = event.isFromSource(android.view.InputDevice.SOURCE_CLASS_JOYSTICK)
+        if (isJoystick && ::dsm.isInitialized && !dsm.companionHoldsPrimary.value) {
+            gamepadInputHandler.resetStickMotion()
             handBackToPrimaryScreen()
             return true
         }
-        if (event.isFromSource(android.view.InputDevice.SOURCE_JOYSTICK) &&
-            ::dsm.isInitialized && !dsm.claimInput(event)
-        ) {
+        if (isJoystick && ::dsm.isInitialized && !dsm.claimInput(event)) {
             android.util.Log.d("SecondaryHome", "Joystick motion already handled by the primary display, dropped")
             return true
         }
         if (yieldsKeysToMediaPlayer()) {
             val forward = dsm.mediaPlayerMotionDispatcher
-            if (forward != null && forward(event)) return true
+            if (forward != null && forward(event)) {
+                gamepadInputHandler.resetStickMotion()
+                return true
+            }
         }
+        if (gamepadInputHandler.processStickMotion(event, steerRightStick = true, ::deliverStickEvent)) return true
         if (gamepadInputHandler.handleMotionEvent(event)) return true
-        val stickEvent = gamepadInputHandler.processStickMotion(event)
-        if (stickEvent != null) {
-            gamepadInputHandler.injectEvent(stickEvent)
-            return true
-        }
         return super.dispatchGenericMotionEvent(event)
+    }
+
+    private fun deliverStickEvent(stickEvent: GamepadEvent, isRepeat: Boolean) {
+        gamepadInputHandler.injectEvent(stickEvent, isRepeat)
     }
 
     private var lastHandBackAtMs = 0L
@@ -452,10 +450,6 @@ class SecondaryHomeActivity :
         return dsm.emulatorDisplayId?.let { it != Display.DEFAULT_DISPLAY } ?: false
     }
 
-    override fun onWizardStateChanged(isActive: Boolean) {
-        isWizardActive = isActive
-    }
-
     override fun onSessionStarted(
         gameId: Long, isHardcore: Boolean, channelName: String?
     ) {
@@ -483,10 +477,6 @@ class SecondaryHomeActivity :
         companionSessionTimer?.stop(applicationContext)
         companionSessionTimer = null
         isInitialized = true
-    }
-
-    override fun onHomeAppsChanged(apps: List<String>) {
-        homeApps = apps
     }
 
     override fun onLibraryRefresh() = Unit
@@ -671,11 +661,14 @@ class SecondaryHomeActivity :
         if (::dsm.isInitialized) dsm.notifyUserActivity("companionUserInteraction")
     }
 
-    override fun refocusSelf() = startActivity(
-        Intent(this, SecondaryHomeActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        }
-    )
+    override fun refocusSelf() {
+        if (dsm.isKeyguardShowing || dsm.isMovingGame) return
+        startActivity(
+            Intent(this, SecondaryHomeActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+        )
+    }
 
     override fun onDownloadCompleted(gameId: Long) {
         onLibraryRefresh()
@@ -707,6 +700,7 @@ class SecondaryHomeActivity :
         loadInitialState()
         if (!isShowcaseRole) dsm.clearMediaInfoRequest()
         dsm.registerCompanionHost(hostDisplayId(), this)
+        systemBars.follow(lifecycleScope, dsm.preferencesRepository.userPreferences)
         lifecycleScope.launch { dsm.companionAchievements.collect { companionAchievements = it } }
         lifecycleScope.launch {
             dsm.companionMediaVisible.collect { visible -> isMediaPanelVisible = visible }
@@ -725,7 +719,6 @@ class SecondaryHomeActivity :
         val store = dsm.sessionStateStore
         isArgosyForeground = store.isArgosyForeground()
         isGameActive = store.hasActiveSession()
-        isWizardActive = store.isWizardActive() || !store.isFirstRunComplete()
         currentChannelName = store.getChannelName()
         isHardcore = store.isHardcore()
 
@@ -772,7 +765,7 @@ class SecondaryHomeActivity :
             while (sessionHoldsThisDisplay()) {
                 kotlinx.coroutines.delay(SESSION_END_POLL_MS)
             }
-            recoverThroughMainActivity()
+            recoverThroughArgosyActivity()
         }
     }
 
@@ -782,10 +775,10 @@ class SecondaryHomeActivity :
      * finishes this one on failure, and the OS respawning a pinned home activity turns that into a
      * loop if a game is what it keeps landing behind.
      */
-    private fun recoverThroughMainActivity() {
-        android.util.Log.w("SecondaryHome", "DSM not available, launching MainActivity")
+    private fun recoverThroughArgosyActivity() {
+        android.util.Log.w("SecondaryHome", "DSM not available, launching ArgosyActivity")
         startActivity(
-            Intent(this, com.nendo.argosy.MainActivity::class.java).apply {
+            Intent(this, com.nendo.argosy.ArgosyActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             },
             android.app.ActivityOptions.makeBasic()
@@ -865,7 +858,7 @@ class SecondaryHomeActivity :
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) window.hideSystemBars()
+        if (hasFocus) systemBars.apply() else gamepadInputHandler.resetStickMotion()
         if (!::dsm.isInitialized) return
         if (hasFocus) {
             dsm.onLauncherWindowFocused(this)

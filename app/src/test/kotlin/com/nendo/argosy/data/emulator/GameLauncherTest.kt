@@ -13,6 +13,7 @@ import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.local.entity.GameFileEntity
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.platform.InstalledAppResolver
+import com.nendo.argosy.data.platform.PlatformFolderResolver
 import com.nendo.argosy.data.preferences.UserPreferences
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.repository.BiosRepository
@@ -66,6 +67,8 @@ class GameLauncherTest {
     private lateinit var libretroSavePathResolver: LibretroSavePathResolver
     private lateinit var launcher: GameLauncher
     private val overlayWriter = mockk<com.nendo.argosy.data.repository.GameUserOverlayWriter>(relaxed = true)
+    private val launchProgressTracker = mockk<LaunchProgressTracker>(relaxed = true)
+    private val steamInstallReports = mockk<com.nendo.argosy.data.launcher.SteamInstallReports>(relaxed = true)
 
     @Before
     fun setup() {
@@ -110,6 +113,13 @@ class GameLauncherTest {
             every { value } returns emptyList()
         }
 
+        val platformFolderResolver = PlatformFolderResolver(
+            context = context,
+            platformDao = platformDao,
+            gameDao = gameDao,
+            preferencesRepository = userPreferencesRepository
+        )
+
         launcher = GameLauncher(
             context = context,
             gameDao = gameDao,
@@ -122,12 +132,20 @@ class GameLauncherTest {
             installedAppResolver = installedAppResolver,
             platformLibretroSettingsDao = platformLibretroSettingsDao,
             emulatorDetector = emulatorDetector,
-            builtinCoreResolver = BuiltinCoreResolver(emulatorConfigDao, userPreferencesRepository),
+            builtinCoreResolver = BuiltinCoreResolver(
+                emulatorConfigDao,
+                userPreferencesRepository,
+                mockk(relaxed = true),
+                kotlin.io.path.createTempDirectory("system").toFile().also {
+                    java.io.File(it, "scph5501.bin").writeBytes(byteArrayOf(0))
+                }
+            ),
             m3uManager = m3uManager,
             libretroCoreMgr = libretroCoreMgr,
             biosRepository = biosRepository,
             userPreferencesRepository = userPreferencesRepository,
             coreOptionResolver = coreOptionResolver,
+            builtinGraphicsResolver = mockk(relaxed = true),
             coreSystemDataManager = coreSystemDataManager,
             gameFileDao = gameFileDao,
             emulatorSaveConfigRepository = emulatorSaveConfigRepository,
@@ -140,14 +158,14 @@ class GameLauncherTest {
             accountSwitchMarkerStore = mockk(relaxed = true),
             extContentOrganizer = mockk(relaxed = true),
             baseRomFileResolver = BaseRomFileResolver(
-                context = context,
                 gameDao = gameDao,
-                platformDao = platformDao,
-                userPreferencesRepository = userPreferencesRepository
+                platformFolderResolver = platformFolderResolver
             ),
+            platformFolderResolver = platformFolderResolver,
             volumeHealth = mockk(relaxed = true),
             dreamcastVmuMigrator = mockk(relaxed = true),
-            launchProgressTracker = mockk(relaxed = true)
+            launchProgressTracker = launchProgressTracker,
+            steamInstallReports = steamInstallReports
         )
     }
 
@@ -237,6 +255,101 @@ class GameLauncherTest {
         } finally {
             io.mockk.unmockkObject(com.nendo.argosy.data.launcher.GameNativeLauncher)
         }
+    }
+
+    private val gameNativePackage = com.nendo.argosy.data.launcher.GameNativeLauncher.packageName
+    private val droidDeckPackage = com.nendo.argosy.data.launcher.DroidDeckLauncher.packageName
+
+    private fun steamGame(launcher: String?, pinned: Boolean) = createGame(
+        platformSlug = "steam",
+        source = GameSource.STEAM
+    ).copy(steamAppId = 620L, steamLauncher = launcher, launcherSetManually = pinned)
+
+    private fun withBothSteamLaunchersInstalled(block: suspend () -> Unit) = runTest {
+        val launchers = listOf(
+            com.nendo.argosy.data.launcher.GameNativeLauncher,
+            com.nendo.argosy.data.launcher.DroidDeckLauncher
+        )
+        launchers.forEach { io.mockk.mockkObject(it) }
+        try {
+            launchers.forEach {
+                every { it.isInstalled(any()) } returns true
+                every { it.createLaunchIntent(any()) } returns mockk(relaxed = true)
+            }
+            block()
+        } finally {
+            launchers.forEach { io.mockk.unmockkObject(it) }
+        }
+    }
+
+    @Test
+    fun `a steam game both launchers report asks which one to use`() = withBothSteamLaunchersInstalled {
+        val game = steamGame(launcher = gameNativePackage, pinned = false)
+        coEvery { gameDao.getById(game.id) } returns game
+        coEvery { steamInstallReports.launchersReporting(620L) } returns listOf(gameNativePackage, droidDeckPackage)
+        val ticket = mockk<LaunchProgressTracker.Ticket>()
+        every { launchProgressTracker.current } returns ticket
+        coEvery { ticket.chooseLauncher(any()) } returns
+            com.nendo.argosy.domain.model.LaunchPromptOption.LAUNCH_WITH_DROIDDECK
+
+        val result = launcher.launch(game.id)
+
+        assertTrue(result is LaunchResult.Success)
+        coVerify {
+            ticket.chooseLauncher(
+                listOf(
+                    com.nendo.argosy.domain.model.LaunchPromptOption.LAUNCH_WITH_GAMENATIVE,
+                    com.nendo.argosy.domain.model.LaunchPromptOption.LAUNCH_WITH_DROIDDECK
+                )
+            )
+        }
+        verify { com.nendo.argosy.data.launcher.DroidDeckLauncher.createLaunchIntent(620L) }
+        verify(exactly = 0) { com.nendo.argosy.data.launcher.GameNativeLauncher.createLaunchIntent(any()) }
+    }
+
+    @Test
+    fun `cancelling the launcher question cancels the launch`() = withBothSteamLaunchersInstalled {
+        val game = steamGame(launcher = gameNativePackage, pinned = false)
+        coEvery { gameDao.getById(game.id) } returns game
+        coEvery { steamInstallReports.launchersReporting(620L) } returns listOf(gameNativePackage, droidDeckPackage)
+        val ticket = mockk<LaunchProgressTracker.Ticket>()
+        every { launchProgressTracker.current } returns ticket
+        coEvery { ticket.chooseLauncher(any()) } returns null
+
+        val result = launcher.launch(game.id)
+
+        assertEquals(LaunchResult.Cancelled, result)
+        coVerify(exactly = 0) { overlayWriter.recordPlayStart(any(), any()) }
+    }
+
+    @Test
+    fun `a pinned steam game launches its pin without asking`() = withBothSteamLaunchersInstalled {
+        val game = steamGame(launcher = droidDeckPackage, pinned = true)
+        coEvery { gameDao.getById(game.id) } returns game
+        val ticket = mockk<LaunchProgressTracker.Ticket>(relaxed = true)
+        every { launchProgressTracker.current } returns ticket
+
+        val result = launcher.launch(game.id)
+
+        assertTrue(result is LaunchResult.Success)
+        coVerify(exactly = 0) { ticket.chooseLauncher(any()) }
+        coVerify(exactly = 0) { steamInstallReports.launchersReporting(any()) }
+        verify { com.nendo.argosy.data.launcher.DroidDeckLauncher.createLaunchIntent(620L) }
+    }
+
+    @Test
+    fun `a steam game only one launcher reports launches without asking`() = withBothSteamLaunchersInstalled {
+        val game = steamGame(launcher = droidDeckPackage, pinned = false)
+        coEvery { gameDao.getById(game.id) } returns game
+        coEvery { steamInstallReports.launchersReporting(620L) } returns listOf(droidDeckPackage)
+        val ticket = mockk<LaunchProgressTracker.Ticket>(relaxed = true)
+        every { launchProgressTracker.current } returns ticket
+
+        val result = launcher.launch(game.id)
+
+        assertTrue(result is LaunchResult.Success)
+        coVerify(exactly = 0) { ticket.chooseLauncher(any()) }
+        verify { com.nendo.argosy.data.launcher.DroidDeckLauncher.createLaunchIntent(620L) }
     }
 
     @Test
@@ -569,7 +682,7 @@ class GameLauncherTest {
 
         runCatching { launcher.launch(1L) }
 
-        verify { libretroCoreMgr.getCorePathForPlatform("psx", "pcsx_rearmed") }
+        verify { libretroCoreMgr.getCorePathForPlatform("psx", "mednafen_psx_hw") }
         verify(exactly = 0) { libretroCoreMgr.getCorePathForPlatform("psx", "swanstation") }
     }
 
@@ -713,13 +826,10 @@ class GameLauncherTest {
         assertEquals("ps2", (result as LaunchResult.NoEmulator).platformSlug)
     }
 
-    @Test
-    fun `PS2 with built-in config should not launch built-in`() = runTest {
-        val path = romFile("iso")
-        val game = createGame(localPath = path, platformSlug = "ps2")
+    private fun bindPs2ToBuiltin(coreSupportsPs2: Boolean): GameEntity {
+        val game = createGame(localPath = romFile("iso"), platformSlug = "ps2")
         coEvery { gameDao.getById(1L) } returns game
         coEvery { variantResolver.getVariantOptions(game) } returns null
-
         val builtinDef = EmulatorRegistry.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE)!!
         coEvery { emulatorConfigDao.getByGameId(1L) } returns null
         coEvery { emulatorConfigDao.getDefaultForPlatform(10L) } returns createConfig(
@@ -727,25 +837,61 @@ class GameLauncherTest {
             packageName = EmulatorRegistry.BUILTIN_PACKAGE,
             isDefault = true
         )
-
         stubDetectorWith(installedEmulator(builtinDef))
         every { emulatorDetector.getByPackage(EmulatorRegistry.BUILTIN_PACKAGE) } returns builtinDef
+        every { libretroCoreMgr.isPlatformSupported("ps2") } returns coreSupportsPs2
+        return game
+    }
 
-        // The built-in claims support via LibretroCoreRegistry.getSupportedPlatforms().
-        // PS2 is NOT in that set. Currently the resolver does not validate this --
-        // it trusts the DB config. This test documents the current behavior.
-        // If built-in is in the installed list AND the DB says built-in for PS2,
-        // the resolver WILL return built-in. This is a known gap.
+    @Test
+    fun `PS2 bound to the built-in is skipped where no built-in ps2 core runs`() = runTest {
+        bindPs2ToBuiltin(coreSupportsPs2 = false)
+        every { emulatorDetector.getPreferredEmulator("ps2", true) } returns null
+
         val result = launcher.launch(1L)
 
-        // Document current behavior: built-in IS returned (incorrectly).
-        // When a platform-support guard is added, this should become NoEmulator.
-        val isBuiltinLaunch = result is LaunchResult.NoCore || result is LaunchResult.Success
-        val isRejected = result is LaunchResult.NoEmulator
-        assertTrue(
-            "PS2 + built-in config should either be rejected or fail at core lookup, got ${result::class.simpleName}",
-            isBuiltinLaunch || isRejected
+        assertTrue("got ${result::class.simpleName}", result is LaunchResult.NoEmulator)
+    }
+
+    @Test
+    fun `PS2 on the built-in core without a BIOS in pcsx2 bios asks for one`() = runTest {
+        bindPs2ToBuiltin(coreSupportsPs2 = true)
+        every { biosRepository.getLibretroSystemDir() } returns tempFolder.newFolder("system-empty")
+
+        val result = launcher.launch(1L)
+
+        assertTrue("got ${result::class.simpleName}", result is LaunchResult.MissingBios)
+        assertEquals("ps2", (result as LaunchResult.MissingBios).platformSlug)
+        coVerify { biosRepository.distributeBiosToEmulator("ps2", EmulatorRegistry.BUILTIN_PACKAGE) }
+    }
+
+    @Test
+    fun `PS2 on the built-in core passes the BIOS gate with any file name in pcsx2 bios`() = runTest {
+        bindPs2ToBuiltin(coreSupportsPs2 = true)
+        val systemDir = tempFolder.newFolder("system-bios")
+        java.io.File(systemDir, "pcsx2/bios").mkdirs()
+        java.io.File(systemDir, "pcsx2/bios/my dump.bin").writeBytes(byteArrayOf(1))
+        every { biosRepository.getLibretroSystemDir() } returns systemDir
+
+        val result = runCatching { launcher.launch(1L) }.getOrNull()
+
+        assertTrue("got ${result?.let { it::class.simpleName }}", result !is LaunchResult.MissingBios)
+        coVerify { coreSystemDataManager.ensureCoreSystemData(any(), any()) }
+    }
+
+    @Test
+    fun `PS2 on the built-in core never raises the memory card picker`() = runTest {
+        bindPs2ToBuiltin(coreSupportsPs2 = true)
+        every { biosRepository.getLibretroSystemDir() } returns tempFolder.newFolder("system-cards")
+        every { saveHandlerRegistry.listPs2FolderMemcardsForEmulator(any(), any(), any()) } returns listOf(
+            mockk(relaxed = true),
+            mockk(relaxed = true)
         )
+
+        val result = launcher.launch(1L)
+
+        assertTrue("got ${result::class.simpleName}", result !is LaunchResult.SelectMemcard)
+        verify(exactly = 0) { saveHandlerRegistry.listPs2FolderMemcardsForEmulator(any(), any(), any()) }
     }
 
     // -----------------------------------------------------------------------

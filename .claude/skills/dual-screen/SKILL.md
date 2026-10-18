@@ -28,7 +28,7 @@ APP_TARGET    where launched apps and games open. Takes no launcher UI.
 OFF           Argosy draws nothing.
 ```
 
-Either physical activity can hold PRIMARY. `MainActivity` and `SecondaryHomeActivity` are
+Either physical activity can hold PRIMARY. `ArgosyActivity` and `SecondaryHomeActivity` are
 interchangeable hosts, and which one is hosting is `DualScreenManager.companionHoldsPrimary`.
 
 LAW: `companionHoldsPrimary` decides BOTH what an activity renders AND where its key events go.
@@ -53,8 +53,12 @@ monitor and you land back in its profile.
 that bug made every screen card draw at the same aspect) and filters to BUILT_IN and EXTERNAL.
 
 `DualScreenManager.applyStoredScreenLayout(promptWhenUnknown)` is THE entry point that resolves
-and applies a layout. Called from `MainActivity.onCreate`, from the display listener on add and
-remove, and by the settings router after a role change. Do not resolve a layout anywhere else.
+and applies a layout. Called from `ArgosyActivity.onCreate`, from the display listener on screen
+add and remove (only after `isScreenEvent` passes, see below), when the built-in screens come back
+on after docked-dark, when DeX ends, and by the settings router after a role change. It reaches
+the live arrangement through `applyScreenLayout` -> `setPrimaryDisplayId`, so the roles it sets
+come from the stored layout and nothing else. `rederiveRolesFromLayout()` is the role-only
+variant for session end, docking and HDMI cleanup. Do not resolve a layout anywhere else.
 
 Swap rule (`ScreenLayout.withRole`): only PRIMARY and PRESENTATION ever trade. Assigning
 APP_TARGET never disturbs the primary, so a media screen stays put. Tests in
@@ -66,7 +70,7 @@ where an app-target screen must survive a swap.
 Both activities choose from DSM flows:
 
 ```
-MainActivity                         SecondaryHomeActivity
+ArgosyActivity                       SecondaryHomeActivity
   companionHoldsPrimary                isRolesSwapped
   || game on another screen            || game shows the dashboard here
     ? PresentationSlotContent(slot)      ? PresentationSlotContent(slot)
@@ -79,7 +83,7 @@ hosting"; one (`isShowcaseRole`) let both screens compose `ArgosyApp` after slee
 or a game closing, and every press moved menus twice.
 
 The two gates are not exact mirrors: while the companion is stopped (screen off, `onStop`)
-`companionHoldsPrimary` is false, so MainActivity composes `ArgosyApp` while the stopped
+`companionHoldsPrimary` is false, so ArgosyActivity composes `ArgosyApp` while the stopped
 companion's composition still exists. What keeps that safe is the next rule.
 
 RULE: `ArgosyApp` collects the gamepad, shortcut and home event flows with
@@ -89,11 +93,11 @@ collector of a `GamepadInputHandler` flow must do the same.
 `ArgosyApp` takes no dual-screen parameters. It reads `DualScreenManagerHolder.instance`.
 
 LAW: inside `ArgosyApp` and anything it hosts, reach DSM through the Holder, never through
-`context as? MainActivity`.
+`context as? ArgosyActivity`.
 - Why: on the companion that cast is null, and roughly twenty sites went silently inert when the
   companion held PRIMARY - overlay events, keyboard toggle, media routing, the screen dimmer.
-- Exception: genuinely MainActivity-owned things, e.g. `pendingDeepLink`, which exists because
-  MainActivity receives the Intent.
+- Exception: genuinely ArgosyActivity-owned things, e.g. `pendingDeepLink`, which exists because
+  ArgosyActivity receives the Intent.
 
 ## PresentationSlot
 
@@ -198,9 +202,25 @@ The transaction numbers are per Android release in `BrightnessController.callsBy
 (Thor, 35/36) is mapped and verified, and the row stays hidden on any release not in that map.
 
 Role-state writers: `swapRoles()` toggles, `applyDisplayRoleOverride(override)` sets, and
-`setPrimaryDisplayId` applies a stored layout. While a session is active each one commits only
-through `moveGameWithRoles`, which carries the game to the display its role lands on first and
-refuses otherwise. Do not write `_isRolesSwapped` from anywhere else.
+`setPrimaryDisplayId` / `rederiveRolesFromLayout()` apply the stored layout. All of them end in
+`commitRoleSwap`. Do not write `_isRolesSwapped` from anywhere else. While a session is active:
+- `swapRoles`, `applyDisplayRoleOverride` and `setPrimaryDisplayId` commit only through
+  `moveGameWithRoles`, which carries the game to the display its role lands on first and refuses
+  otherwise.
+- `rederiveRolesFromLayout()` does not commit at all and waits for the session end, with one
+  exception: docked-dark (built-in screens off beside an external display) always commits
+  unswapped, session or not.
+
+LAW: the stored layout of the attached set is the only source of the swapped flag. The two user
+commands (`swapRoles`, `applyDisplayRoleOverride`) write the layout through `persistPrimaryRole`,
+and only once the role change commits; nothing else writes it. Activity creation, screen
+add/remove, docking, DeX exit and session end derive roles from the layout alone; none of them
+consults the Control Screen override. A layout-derived move refused during a session needs no
+pending copy, because the layout already holds it and every session end calls
+`rederiveRolesFromLayout()`. A refused user swap writes no layout; one whose move timed out
+commits late only if the game still reaches the target (`onGameMovedToDisplay`). The stored
+override follows the layout (`followingLayout`, applied in `applyLayoutRoles`): AUTO stays AUTO,
+an explicit value is rewritten to the arrangement the layout produces.
 
 Live move (AYN Thor only, `liveSwapAvailable`): needs `hardware/ThorTaskMover` answering its probe,
 a software-rendered built-in core registered as `LiveMoveHost`, and a game on the PRIMARY or
@@ -221,8 +241,15 @@ as the intercept handler so every other button still reaches the screen behind i
 Known-set changes never prompt; they just apply the stored profile.
 
 UNPROVEN: this path has not been exercised with real hardware. `overlay_display_devices` cannot
-fake it, because `ScreenCatalog` filters to BUILT_IN/EXTERNAL and the listener gates on
-`isPhysicalDisplay`. Needs a monitor plugged into the Thor.
+fake it, because `ScreenCatalog` filters to BUILT_IN/EXTERNAL and the listener gates on the
+same set.
+
+LAW: the DSM display listener acts only on screens. `isScreenEvent` passes a display that is in
+`ScreenCatalog.attachedScreens()` now or was at the previous event (a removed display can no
+longer be classified, so membership is remembered). Emulators such as Azahar create and remove
+their own virtual and presentation displays mid-session; those never reach role re-derivation,
+companion relaunch, docked sync or session teardown. `ScreenCatalog.isScreen` is the one
+predicate; `DisplayAffinityHelper.isPhysicalDisplay` is that predicate plus "not off". Needs a monitor plugged into the Thor.
 
 ## Process and lifecycle (unchanged, still true)
 
@@ -260,7 +287,7 @@ makes launching to a media screen work even in single-display mode.
 1. [ ] State on DSM as a StateFlow, never on an activity.
 2. [ ] Does the presentation screen show it? Add a `PresentationSlot` case and publish it, rather
        than reaching for a second render path.
-3. [ ] Reach DSM via the Holder, not via MainActivity.
+3. [ ] Reach DSM via the Holder, not via ArgosyActivity.
 4. [ ] Gamepad AND touch. An app bar you can tap but not reach with the d-pad fails the
        completeness matrix; that has already shipped once.
 5. [ ] If you add a CompanionHost method, implement it for real or do not add it. Three `= Unit`

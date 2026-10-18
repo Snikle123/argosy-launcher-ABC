@@ -47,9 +47,12 @@ import com.nendo.argosy.data.repository.HomeTileRepository
 import com.nendo.argosy.domain.model.CustomGridConfig
 import com.nendo.argosy.domain.model.CustomGridLayout
 import com.nendo.argosy.domain.model.CustomGridShape
+import com.nendo.argosy.data.preferences.EmulatorDisplayTarget
 import com.nendo.argosy.ui.screens.settings.DisplayState
+import com.nendo.argosy.ui.screens.settings.LaunchTargetScreens
 import com.nendo.argosy.ui.screens.settings.SettingsPreviewGame
 import com.nendo.argosy.ui.screens.settings.toSettingsPreviewGame
+import com.nendo.argosy.util.HomeAppAvailability
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,7 +73,8 @@ class DisplaySettingsDelegate @Inject constructor(
     private val screenCaptureManager: ScreenCaptureManager,
     private val customGridShapeStore: CustomGridShapeStore,
     private val homeTileRepository: HomeTileRepository,
-    private val syncPreferencesRepository: SyncPreferencesRepository
+    private val syncPreferencesRepository: SyncPreferencesRepository,
+    private val homeAppAvailability: HomeAppAvailability
 ) {
     private val _state = MutableStateFlow(DisplayState())
     val state: StateFlow<DisplayState> = _state.asStateFlow()
@@ -118,6 +122,20 @@ class DisplaySettingsDelegate @Inject constructor(
 
     fun updateState(newState: DisplayState) {
         _state.value = newState
+    }
+
+    fun setGamesLaunchTarget(scope: CoroutineScope, target: EmulatorDisplayTarget) {
+        _state.update { it.copy(gamesLaunchTarget = target) }
+        scope.launch { preferencesRepository.setGamesDisplayTarget(target) }
+    }
+
+    fun setAppsLaunchTarget(scope: CoroutineScope, target: EmulatorDisplayTarget) {
+        _state.update { it.copy(appsLaunchTarget = target) }
+        scope.launch { preferencesRepository.setAppsDisplayTarget(target) }
+    }
+
+    fun setLaunchTargetSummary(screens: LaunchTargetScreens, setCount: Int) {
+        _state.update { it.copy(launchTargetScreens = screens, launchTargetSetCount = setCount) }
     }
 
     fun setThemeMode(scope: CoroutineScope, mode: ThemeMode) {
@@ -521,6 +539,17 @@ class DisplaySettingsDelegate @Inject constructor(
         scope.launch { preferencesRepository.setPresentationStyle(style) }
     }
 
+    fun adjustPresentationBackgroundBlur(scope: CoroutineScope, delta: Int) {
+        val current = _state.value.presentationBackgroundBlur
+        val newValue = (current + delta).coerceIn(0, 100)
+        if (newValue != current) {
+            scope.launch {
+                preferencesRepository.setPresentationBackgroundBlur(newValue)
+                _state.update { it.copy(presentationBackgroundBlur = newValue) }
+            }
+        }
+    }
+
     fun setUseAccentColorFooter(scope: CoroutineScope, use: Boolean) {
         scope.launch {
             preferencesRepository.setUseAccentColorFooter(use)
@@ -535,11 +564,68 @@ class DisplaySettingsDelegate @Inject constructor(
         }
     }
 
+    fun setHideSystemNavigationBar(scope: CoroutineScope, hide: Boolean) {
+        scope.launch {
+            preferencesRepository.setHideSystemNavigationBar(hide)
+            _state.update { it.copy(hideSystemNavigationBar = hide) }
+        }
+    }
+
+    fun setHideSystemStatusBar(scope: CoroutineScope, hide: Boolean) {
+        scope.launch {
+            preferencesRepository.setHideSystemStatusBar(hide)
+            _state.update { it.copy(hideSystemStatusBar = hide) }
+        }
+    }
+
     fun setLockScreenArt(scope: CoroutineScope, enabled: Boolean) {
         scope.launch {
             preferencesRepository.setLockScreenArt(enabled)
             _state.update { it.copy(lockScreenArt = enabled) }
         }
+    }
+
+    fun setPreLaunchRecaps(scope: CoroutineScope, enabled: Boolean) {
+        scope.launch {
+            preferencesRepository.setPreLaunchRecapsEnabled(enabled)
+            _state.update { it.copy(preLaunchRecaps = enabled) }
+        }
+    }
+
+    fun setMonthlyRecap(scope: CoroutineScope, enabled: Boolean) {
+        scope.launch {
+            preferencesRepository.setMonthlyRecapEnabled(enabled)
+            _state.update { it.copy(monthlyRecap = enabled) }
+        }
+    }
+
+    fun setHomeAppAvailable(scope: CoroutineScope, available: Boolean) {
+        scope.launch {
+            val applied = homeAppAvailability.setAvailable(available)
+            _state.update { it.copy(homeAppAvailable = applied) }
+        }
+    }
+
+    suspend fun isDefaultHome(): Boolean = homeAppAvailability.isDefaultHome()
+
+    fun refreshDefaultHome(scope: CoroutineScope) {
+        scope.launch {
+            val isDefaultHome = homeAppAvailability.isDefaultHome()
+            _state.update { it.copy(isDefaultHome = isDefaultHome) }
+        }
+    }
+
+    fun setIconPack(scope: CoroutineScope, packageName: String?) {
+        scope.launch {
+            preferencesRepository.setIconPack(packageName)
+            _state.update { it.copy(iconPack = packageName) }
+        }
+    }
+
+    fun cycleIconPack(scope: CoroutineScope, direction: Int) {
+        val state = _state.value
+        val options = state.iconPackOptions
+        setIconPack(scope, options[(state.selectedIconPackIndex + direction).mod(options.size)])
     }
 
     fun showGripControllerModal() {

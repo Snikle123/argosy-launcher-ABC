@@ -19,6 +19,9 @@
     <!-- Screen reader text for the right trigger glyph beside the platform name. It steps the
          list forward one platform. Verb phrase describing the action. -->
     <string name="library_header_next_platform">Next platform</string>
+    <!-- Screen reader text for the arrow left of the library title. It leaves the platform's game
+         list the way the Back button does. -->
+    <string name="library_header_back_desc">Back</string>
     <!-- How many games the game list is currently showing, in its header. -->
     <plurals name="library_header_game_count">
         <item quantity="one">%d game</item>
@@ -237,6 +240,9 @@
     <!-- Quick action menu entry when the game is visible. Verb, takes it out of the normal
          list. -->
     <string name="library_quickmenu_hide">Hide</string>
+    <!-- Quick action menu entry for a game the RomM server no longer has and no copy of on the
+         device. Verb phrase: drops the game from the library. Files and saves stay on disk. -->
+    <string name="library_quickmenu_remove_from_library">Remove from Library</string>
 
     <!-- Toast confirming a game was added to the curated home grid. -->
     <string name="library_notice_added_to_home_grid">Added to home grid</string>
@@ -248,6 +254,10 @@
     <!-- Toast confirming the local copy of a game was deleted. "Download" is a noun here,
          the downloaded file. -->
     <string name="library_notice_download_deleted">Download deleted</string>
+    <!-- Toast confirming a game was removed from the library. Past tense statement. -->
+    <string name="library_notice_removed_from_library">Removed from library</string>
+    <!-- Toast shown when removing a game from the library did not happen. -->
+    <string name="library_notice_remove_failed">Could not remove this game</string>
     <!-- Toast shown when a download was asked for but the game is already on the device. -->
     <string name="library_notice_already_downloaded">Game already downloaded</string>
     <!-- Toast confirming a multi-disc game was queued. Counts the discs being fetched. -->
@@ -295,11 +305,9 @@
     <string name="library_apps_hint_open">Open</string>
     <!-- Button hint on the apps screen. Verb, leaves the screen. -->
     <string name="library_apps_hint_back">Back</string>
-    <!-- Button hint on the apps screen for a device with two screens. Verb phrase, starts the
-         focused app on the upper screen. -->
-    <string name="library_apps_hint_open_on_top">Open on Top</string>
-    <!-- Button hint on the apps screen for a device with one screen. Verb, begins arranging
-         the apps into a new order. -->
+    <!-- Brief message on the apps screen when Android refuses to start the chosen app. -->
+    <string name="library_apps_launch_failed">Could not open app</string>
+    <!-- Button hint on the apps screen. Verb, begins arranging the apps into a new order. -->
     <string name="library_apps_hint_reorder">Reorder</string>
     <!-- Footer hint on dual-screen devices, where Select swaps the two screens. Verb phrase. -->
     <string name="library_apps_hint_swap_screens">Swap Screens</string>

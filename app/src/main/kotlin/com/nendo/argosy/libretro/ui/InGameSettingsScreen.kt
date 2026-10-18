@@ -1,8 +1,6 @@
 package com.nendo.argosy.libretro.ui
 
-import android.view.InputDevice
 import androidx.annotation.StringRes
-import com.nendo.argosy.data.local.entity.ControllerOrderEntity
 import com.nendo.argosy.data.local.entity.CoreInputMode
 import com.nendo.argosy.data.local.entity.HotkeyAction
 import com.nendo.argosy.data.local.entity.HotkeyScopeType
@@ -34,6 +32,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -59,6 +58,7 @@ import com.nendo.argosy.ui.screens.settings.CoreOptionViewItem
 import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.screens.settings.components.ControllerOrderModal
+import com.nendo.argosy.ui.screens.settings.components.ControllerSeatController
 import com.nendo.argosy.ui.screens.settings.components.GripSettingsModal
 import com.nendo.argosy.ui.screens.settings.components.HotkeysModal
 import com.nendo.argosy.data.repository.MappingPlatforms
@@ -70,7 +70,9 @@ import com.nendo.argosy.ui.input.stepOption
 import com.nendo.argosy.ui.common.hudCornerFromStored
 import com.nendo.argosy.ui.common.labelRes
 import com.nendo.argosy.core.emulator.LibretroSettingDef
+import com.nendo.argosy.core.input.ActiveController
 import com.nendo.argosy.core.input.SoundType
+import kotlinx.coroutines.flow.StateFlow
 import com.nendo.argosy.ui.screens.settings.libretro.LibretroSettingsAccessor
 import com.nendo.argosy.data.platform.PlatformWeightRegistry
 import com.nendo.argosy.ui.screens.settings.libretro.LibretroSettingsSection
@@ -169,18 +171,18 @@ sealed class InGameControlsAction {
 }
 
 data class InGameModalCallbacks(
-    val controllerOrder: List<ControllerOrderEntity>,
+    val controllerSeats: ControllerSeatController,
     val hotkeys: List<HotkeyEntity>,
-    val connectedControllers: List<ControllerInfo>,
-    val onAssignController: (Int, InputDevice) -> Unit,
-    val onClearControllerOrder: () -> Unit,
+    val connectedControllers: StateFlow<List<ControllerInfo>>,
+    val activeController: StateFlow<ActiveController?>,
+    val onHoldActiveController: (Boolean) -> Unit,
+    val lockedProfileIndexFor: (ControllerInfo) -> Int?,
     val onGetMapping: suspend (ControllerInfo, String?) -> ScopedMapping,
     val onSaveMapping: suspend (ControllerInfo, Map<InputSource, Int>, String?, Boolean, String?) -> Unit,
     val onApplyPreset: suspend (ControllerInfo, String) -> Unit,
     val onSaveHotkey: suspend (HotkeyAction, List<Int>, HotkeyScopeType, String?) -> Unit,
     val onClearHotkey: suspend (HotkeyAction, HotkeyScopeType, String?) -> Unit,
     val onSetHotkeyHoldMs: suspend (HotkeyAction, Long, HotkeyScopeType, String?) -> Unit,
-    val lockedProfileIndex: Int? = null,
     val coreId: String? = null,
     val coreName: String? = null,
     val platformSlug: String? = null,
@@ -356,7 +358,7 @@ fun InGameSettingsScreen(
         )
     }
     val videoLibretroCount = remember(platformSlug, canEnableBFI) {
-        libretroSettingsMaxFocusIndex(platformSlug, canEnableBFI, showSavingSection = false) + 1
+        libretroSettingsMaxFocusIndex(platformSlug, canEnableBFI) + 1
     }
     val maxVideoFocusIndex = videoLibretroCount + InGameHudItem.entries.size - 1
     val controlsMaxFocusIndex = remember(controlsVisibility) {
@@ -385,8 +387,7 @@ fun InGameSettingsScreen(
         InGameSettingsTab.VIDEO -> libretroSettingsItemAtFocusIndex(
             index = index,
             platformSlug = platformSlug,
-            canEnableBFI = canEnableBFI,
-            showSavingSection = false
+            canEnableBFI = canEnableBFI
         )
         InGameSettingsTab.CONTROLS -> null
         InGameSettingsTab.CORE_OPTIONS -> null
@@ -430,6 +431,11 @@ fun InGameSettingsScreen(
         return currentCoreOptions.value.getOrNull(index - offset)?.key
     }
 
+    fun openControllerOrder() {
+        modalCallbacks.controllerSeats.open()
+        showControllerOrderModal = true
+    }
+
     fun cycleControlsItem(direction: Int): Boolean {
         val item = controlsLayout.itemAtFocusIndex(focusedIndex, controlsVisibility)
         if (item !is InGameControlsItem.ControllerType) return false
@@ -444,7 +450,7 @@ fun InGameSettingsScreen(
         when (item) {
             InGameControlsItem.GameSpecificControls -> action(InGameControlsAction.SetGameSpecificControls(!state.gameSpecificControls))
             InGameControlsItem.Rumble -> action(InGameControlsAction.SetRumble(!state.rumbleEnabled))
-            InGameControlsItem.ControllerOrder -> showControllerOrderModal = true
+            InGameControlsItem.ControllerOrder -> openControllerOrder()
             is InGameControlsItem.ControllerType ->
                 action(InGameControlsAction.CycleControllerType(item.port, 1))
             InGameControlsItem.InputMapping -> showInputMappingModal = true
@@ -649,7 +655,6 @@ fun InGameSettingsScreen(
                             focusedIndex = focusedIndex,
                             platformSlug = platformSlug,
                             canEnableBFI = canEnableBFI,
-                            showSavingSection = false,
                             listState = videoListState,
                             enablePicker = false,
                             trailingContent = { InGameHudHeader() },
@@ -674,7 +679,7 @@ fun InGameSettingsScreen(
                             visibility = controlsVisibility,
                             onAction = { action ->
                                 when (action) {
-                                    InGameControlsAction.ShowControllerOrder -> showControllerOrderModal = true
+                                    InGameControlsAction.ShowControllerOrder -> openControllerOrder()
                                     InGameControlsAction.ShowGripSettings -> showGripSettingsModal = true
                                     InGameControlsAction.ShowInputMapping -> showInputMappingModal = true
                                     InGameControlsAction.ShowHotkeys -> showHotkeysModal = true
@@ -716,18 +721,23 @@ fun InGameSettingsScreen(
 
         if (showControllerOrderModal) {
             ControllerOrderModal(
-                existingOrder = modalCallbacks.controllerOrder,
-                onAssign = modalCallbacks.onAssignController,
-                onClearAll = modalCallbacks.onClearControllerOrder,
+                controller = modalCallbacks.controllerSeats,
                 onDismiss = { showControllerOrderModal = false }
             )
         }
 
         if (showInputMappingModal) {
+            val controllers by modalCallbacks.connectedControllers.collectAsState()
+            val activeController by modalCallbacks.activeController.collectAsState()
             InputMappingModal(
-                controllers = modalCallbacks.connectedControllers,
-                lockedPlatformIndex = modalCallbacks.lockedProfileIndex
-                    ?: MappingPlatforms.indexForPlatformSlug(platformSlug ?: ""),
+                controllers = controllers,
+                activeController = activeController,
+                onHoldActiveController = modalCallbacks.onHoldActiveController,
+                inputDispatcher = null,
+                lockedPlatformIndexFor = { controller ->
+                    modalCallbacks.lockedProfileIndexFor(controller)
+                        ?: MappingPlatforms.indexForPlatformSlug(platformSlug ?: "")
+                },
                 onGetMapping = modalCallbacks.onGetMapping,
                 onSaveMapping = modalCallbacks.onSaveMapping,
                 onApplyPreset = modalCallbacks.onApplyPreset,

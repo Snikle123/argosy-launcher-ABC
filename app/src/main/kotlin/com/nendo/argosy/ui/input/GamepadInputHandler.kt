@@ -1,22 +1,27 @@
 package com.nendo.argosy.ui.input
 
 import android.view.InputDevice
+import android.view.InputEvent
 import android.view.KeyEvent
 import android.view.MotionEvent
+import com.nendo.argosy.core.input.ConnectedControllerTracker
+import com.nendo.argosy.core.input.VirtualPad
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.util.SafeCoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
 interface RawInputInterceptor {
-    val lastInputDevice: InputDevice?
     fun setRawKeyEventListener(listener: ((KeyEvent) -> Boolean)?)
     fun setRawMotionEventListener(listener: ((MotionEvent) -> Boolean)?)
     fun mapKeyToEvent(keyCode: Int): GamepadEvent?
@@ -45,6 +50,10 @@ sealed interface GamepadEvent {
     data object Select : GamepadEvent
     data object LeftStickClick : GamepadEvent
     data object RightStickClick : GamepadEvent
+    data object RightStickUp : GamepadEvent
+    data object RightStickDown : GamepadEvent
+    data object RightStickLeft : GamepadEvent
+    data object RightStickRight : GamepadEvent
     data object Home : GamepadEvent
     data object LongConfirm : GamepadEvent
     data object LongSelect : GamepadEvent
@@ -52,7 +61,8 @@ sealed interface GamepadEvent {
 
 @Singleton
 class GamepadInputHandler @Inject constructor(
-    preferencesRepository: UserPreferencesRepository
+    preferencesRepository: UserPreferencesRepository,
+    private val controllerTracker: ConnectedControllerTracker
 ) : RawInputInterceptor {
 
     private val _events = MutableSharedFlow<GamepadInput>(extraBufferCapacity = 16)
@@ -72,9 +82,6 @@ class GamepadInputHandler @Inject constructor(
     private var claimedShortcutKey: Int? = null
 
     private val selectModifier = SelectModifier()
-
-    override var lastInputDevice: InputDevice? = null
-        private set
 
     private var rawKeyEventListener: ((KeyEvent) -> Boolean)? = null
     private var rawMotionEventListener: ((MotionEvent) -> Boolean)? = null
@@ -104,8 +111,17 @@ class GamepadInputHandler @Inject constructor(
         if (shortcutGate === gate) shortcutGate = null
     }
 
-    fun injectEvent(event: GamepadEvent) {
-        emitWithDebounce(event, isRepeat = false)
+    /**
+     * Credits [event] to the virtual pad latch and the active controller. Call it for input this
+     * handler never receives directly, such as a key forwarded to the companion screen.
+     */
+    fun observeInput(event: InputEvent) {
+        VirtualPad.observe(event)
+        controllerTracker.noteInput(event)
+    }
+
+    fun injectEvent(event: GamepadEvent, isRepeat: Boolean) {
+        emitWithDebounce(event, isRepeat)
     }
 
     private val lastInputTimes = mutableMapOf<GamepadEvent, Long>()
@@ -134,39 +150,103 @@ class GamepadInputHandler @Inject constructor(
 
     override fun setRawMotionEventListener(listener: ((MotionEvent) -> Boolean)?) {
         rawMotionEventListener = listener
+        if (listener != null) resetStickMotion()
     }
 
     private var confirmDownTime = 0L
     private var confirmFired = false
     private var confirmDeferred = false
-    private var confirmDeferJob: kotlinx.coroutines.Job? = null
-    private var selectHoldJob: kotlinx.coroutines.Job? = null
+    private var confirmDeferJob: Job? = null
+    private var selectHoldJob: Job? = null
     private var backPressClaimed = false
     private var backDeferred = false
-    private var backDeferJob: kotlinx.coroutines.Job? = null
+    private var backDeferJob: Job? = null
     private val longPressThresholdMs = 500L
 
-    private var lastStickDirection: GamepadEvent? = null
-    private val stickDeadZone = 0.5f
+    private val padDirections = mutableMapOf<Int, AxisDirectionTracker>()
+    private var heldDeviceId: Int? = null
+    private var heldDirection: GamepadEvent? = null
+    private var directionRepeatJob: Job? = null
+    private val directionRepeatDelayMs = 400L
+    private val directionRepeatIntervalMs = 150L
 
-    fun processStickMotion(event: MotionEvent): GamepadEvent? {
-        com.nendo.argosy.core.input.VirtualPad.observe(event)
-        if (event.source and InputDevice.SOURCE_JOYSTICK == 0) return null
-
-        val x = event.getAxisValue(MotionEvent.AXIS_X)
-        val y = event.getAxisValue(MotionEvent.AXIS_Y)
-
-        val direction = when {
-            y < -stickDeadZone -> GamepadEvent.Up
-            y > stickDeadZone -> GamepadEvent.Down
-            x < -stickDeadZone -> GamepadEvent.Left
-            x > stickDeadZone -> GamepadEvent.Right
-            else -> null
+    /**
+     * Left-stick sample to directional event conversion once a raw motion listener declines it.
+     * [deliver] gets a direction entered with isRepeat false, then the held direction per repeat
+     * tick with isRepeat true until neutral. The result is true while the stick holds a direction,
+     * so a hat sample with the stick at rest reaches the platform's DPAD key synthesis.
+     */
+    fun processStickMotion(
+        event: MotionEvent,
+        steerRightStick: Boolean,
+        deliver: (GamepadEvent, Boolean) -> Unit
+    ): Boolean {
+        observeInput(event)
+        if (!event.isFromSource(InputDevice.SOURCE_CLASS_JOYSTICK)) return false
+        if (handleMotionEvent(event)) {
+            resetStickMotion()
+            return true
         }
+        if (steerRightStick) processRightStickMotion(event) else releaseRightStick()
 
-        if (direction == lastStickDirection) return null
-        lastStickDirection = direction
-        return direction
+        val deviceId = event.deviceId
+        val stick = padDirections.getOrPut(deviceId) { AxisDirectionTracker() }
+        val stickEdge = stick.update(
+            event.getAxisValue(MotionEvent.AXIS_X),
+            event.getAxisValue(MotionEvent.AXIS_Y)
+        )
+        val direction = stick.direction
+        if (direction == null) padDirections.remove(deviceId)
+        val ownerId = heldDeviceId
+        if (direction == null && ownerId != null && ownerId != deviceId) return false
+
+        heldDeviceId = if (direction == null) null else deviceId
+        updateDirectionRepeat(direction, deliver)
+
+        stickEdge?.let { deliver(it, false) }
+        return direction != null
+    }
+
+    fun resetStickMotion() {
+        padDirections.clear()
+        heldDeviceId = null
+        heldDirection = null
+        directionRepeatJob?.cancel()
+        directionRepeatJob = null
+        releaseRightStick()
+    }
+
+    private fun updateDirectionRepeat(direction: GamepadEvent?, deliver: (GamepadEvent, Boolean) -> Unit) {
+        if (direction == heldDirection) return
+        heldDirection = direction
+        directionRepeatJob?.cancel()
+        directionRepeatJob = if (direction == null) {
+            null
+        } else {
+            scope.launch {
+                delay(directionRepeatDelayMs)
+                while (isActive) {
+                    deliver(direction, true)
+                    delay(directionRepeatIntervalMs)
+                }
+            }
+        }
+    }
+
+    private val rightStick = RightStickStepper(scope) { event, isRepeat -> emitWithDebounce(event, isRepeat) }
+    private val rightStickHorizontal = RightStickStepper(scope, ::rightStickHorizontalStepFor) { event, isRepeat ->
+        emitWithDebounce(event, isRepeat)
+    }
+
+    private fun processRightStickMotion(event: MotionEvent) {
+        if (event.source and InputDevice.SOURCE_JOYSTICK == 0) return
+        rightStick.onAxis(event.getAxisValue(MotionEvent.AXIS_RZ))
+        rightStickHorizontal.onAxis(event.getAxisValue(MotionEvent.AXIS_Z))
+    }
+
+    private fun releaseRightStick() {
+        rightStick.release()
+        rightStickHorizontal.release()
     }
 
     fun handleMotionEvent(event: MotionEvent): Boolean {
@@ -185,8 +265,7 @@ class GamepadInputHandler @Inject constructor(
      */
     fun handleKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) {
-            lastInputDevice = event.device
-            com.nendo.argosy.core.input.VirtualPad.observe(event)
+            observeInput(event)
             com.nendo.argosy.util.Logger.verbose("GamepadInput") { "KeyEvent: keyCode=${event.keyCode}, scanCode=${event.scanCode}, device=${event.device?.name}, deviceId=${event.deviceId}, source=${event.source}" }
         }
 
@@ -207,7 +286,7 @@ class GamepadInputHandler @Inject constructor(
                 confirmDeferred = true
                 confirmDeferJob?.cancel()
                 confirmDeferJob = scope.launch {
-                    kotlinx.coroutines.delay(longPressThresholdMs)
+                    delay(longPressThresholdMs)
                     if (confirmDeferred && !confirmFired) {
                         confirmFired = true
                         confirmDeferred = false

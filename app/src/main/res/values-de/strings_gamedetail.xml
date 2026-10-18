@@ -84,6 +84,7 @@
     <string name="gamedetail_footer_view_reviews">Rezensionen lesen</string>
     <string name="gamedetail_footer_open_related">Öffnen</string>
     <string name="gamedetail_footer_back">Zurück</string>
+    <string name="gamedetail_header_back_desc">Zurück</string>
     <string name="gamedetail_footer_new_game">Neues Spiel</string>
     <string name="gamedetail_footer_shortcut_make_public">Öffentlich machen</string>
     <string name="gamedetail_footer_shortcut_make_private">Privat machen</string>
@@ -113,7 +114,7 @@
     <string name="gamedetail_chip_play_time_label">Spielzeit</string>
 
     <string name="gamedetail_chip_rating_value">%1$d/10</string>
-    <string name="gamedetail_chip_rating_unset">Nicht festgelegt</string>
+    <string name="gamedetail_chip_rating_unset">k. A.</string>
     <string name="gamedetail_chip_community_rating_value">%1$d%%</string>
 
     <string name="gamedetail_chip_play_time_minutes">%1$dm</string>
@@ -124,6 +125,7 @@
     <!-- ============================= Collapsed header bar ============================== -->
 
     <string name="gamedetail_collapsed_header_rating_percent">%1$d%%</string>
+    <string name="gamedetail_header_not_on_romm">Nicht auf RomM</string>
     <plurals name="gamedetail_collapsed_header_play_count">
         <item quantity="one">%1$d Durchgang</item>
         <item quantity="other">%1$d Durchgänge</item>
@@ -311,6 +313,7 @@
 
     <string name="gamedetail_emulator_picker_title">EMULATOR AUSWÄHLEN</string>
     <string name="gamedetail_emulator_picker_platform_default">Plattformstandard verwenden</string>
+    <string name="gamedetail_emulator_picker_builtin_core_build">%1$s (Build vom %2$s)</string>
 
     <string name="gamedetail_variant_picker_title">VARIANTE AUSWÄHLEN</string>
     <string name="gamedetail_variant_picker_subtitle">Wählen Sie, welche Version gestartet werden soll</string>
@@ -550,4 +553,20 @@
     <string name="reviews_editor_footer_submit">Veröffentlichen</string>
     <string name="reviews_editor_footer_delete">Löschen</string>
     <string name="reviews_editor_footer_back">Zurück</string>
+    <string name="gamedetail_per_game_backend_label">Backend</string>
+    <string name="gamedetail_per_game_backend_inherit">Geerbt (%1$s)</string>
+    <string name="gamedetail_per_game_footer_gpu_driver_options">Optionen</string>
+    <string name="gamedetail_per_game_gpu_driver_install">%1$s installieren</string>
+    <string name="gamedetail_per_game_gpu_driver_installing">%1$s wird installiert...</string>
+    <string name="gamedetail_per_game_gpu_driver_installed">%1$s installiert</string>
+    <string name="gamedetail_per_game_gpu_driver_install_failed">%1$s konnte nicht installiert werden</string>
+    <string name="gamedetail_per_game_gpu_driver_label">GPU-Treiber</string>
+    <string name="gamedetail_per_game_gpu_driver_inherit">Geerbt (%1$s)</string>
+    <string name="gamedetail_per_game_gpu_driver_system">Systemtreiber</string>
+    <string name="gamedetail_per_game_gpu_driver_missing">Treiber fehlt (Systemtreiber aktiv)</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core">Von %1$s nicht unterstützt</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core_system_only">%1$s nutzt den Systemtreiber</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core_unknown">diesem Kern</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_backend">Gilt, wenn das Backend Vulkan ist</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_device">Eigene Treiber benötigen eine Adreno-GPU</string>
 </resources>

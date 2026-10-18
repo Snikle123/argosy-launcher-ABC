@@ -415,6 +415,7 @@ data class RomMRAGameProgression(
     @Json(name = "num_awarded") val numAwarded: Int? = null,
     @Json(name = "num_awarded_hardcore") val numAwardedHardcore: Int? = null,
     @Json(name = "most_recent_awarded_date") val mostRecentAwardedDate: String? = null,
+    @Json(name = "highest_award_kind") val highestAwardKind: String? = null,
     @Json(name = "earned_achievements") val earnedAchievements: List<RomMEarnedAchievement> = emptyList()
 )
 

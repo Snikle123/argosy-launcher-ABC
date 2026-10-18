@@ -4,6 +4,7 @@ import android.os.SystemClock
 import com.nendo.argosy.util.Logger
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +22,7 @@ class RomMAchievementService @Inject constructor(
     @Volatile private var lastRefreshAttemptAt = 0L
     @Volatile private var cachedRAProgression: Map<Long, List<RomMEarnedAchievement>> = emptyMap()
     @Volatile private var cachedProgression: List<RomMRAGameProgression> = emptyList()
+    @Volatile private var progressionRefreshedAt: Instant? = null
 
     fun onAppResumed() {
         refreshAttemptedThisSession = false
@@ -31,11 +33,20 @@ class RomMAchievementService @Inject constructor(
         lastRefreshAttemptAt = 0L
         cachedRAProgression = emptyMap()
         cachedProgression = emptyList()
+        progressionRefreshedAt = null
     }
+
+    /**
+     * Wall-clock time the server last refreshed the cached progression from RetroAchievements, or
+     * null while the cache holds nothing a refresh produced.
+     */
+    fun progressionRefreshedAt(): Instant? = progressionRefreshedAt
 
     fun getEarnedBadgeIds(raGameId: Long): Set<String> {
         return cachedRAProgression[raGameId]?.map { it.id }?.toSet() ?: emptySet()
     }
+
+    fun hasProgressionFor(raGameId: Long): Boolean = api != null && cachedRAProgression.containsKey(raGameId)
 
     fun getEarnedAchievements(raGameId: Long): List<RomMEarnedAchievement> {
         return cachedRAProgression[raGameId] ?: emptyList()
@@ -96,7 +107,10 @@ class RomMAchievementService @Inject constructor(
                 Logger.warn(TAG, "Post-refresh user fetch failed (${refreshedUserResponse.code()}); preserving existing cache")
                 null
             }
-            if (progression != null) updateCache(progression)
+            if (progression != null) {
+                updateCache(progression)
+                progressionRefreshedAt = Instant.now()
+            }
 
             RomMResult.Success(Unit)
         } catch (e: Exception) {

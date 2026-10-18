@@ -78,6 +78,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -86,6 +87,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -103,6 +105,7 @@ class SettingsViewModel @Inject constructor(
     internal val touchLayoutRepository: com.nendo.argosy.data.repository.TouchLayoutRepository,
     internal val launchArgsRepo: com.nendo.argosy.data.repository.LaunchArgsRepository,
     internal val installedAppResolver: com.nendo.argosy.data.platform.InstalledAppResolver,
+    internal val iconPackRepository: com.nendo.argosy.data.iconpack.IconPackRepository,
     internal val emulatorConfigRepo: EmulatorConfigRepository,
     internal val emulatorDetector: EmulatorDetector,
     internal val builtinCoreResolver: BuiltinCoreResolver,
@@ -148,11 +151,15 @@ class SettingsViewModel @Inject constructor(
     internal val gradientColorExtractor: GradientColorExtractor,
     internal val coreManager: LibretroCoreManager,
     internal val inputConfigRepository: com.nendo.argosy.data.repository.InputConfigRepository,
+    private val connectedControllerTracker: com.nendo.argosy.core.input.ConnectedControllerTracker,
     internal val frameRegistry: com.nendo.argosy.libretro.frame.FrameRegistry,
     internal val displayAffinityHelper: com.nendo.argosy.util.DisplayAffinityHelper,
+    internal val emulatorLaunchTargetResolver: com.nendo.argosy.ui.screens.common.EmulatorLaunchTargetResolver,
+    internal val appsRepository: com.nendo.argosy.data.repository.AppsRepository,
     internal val socialRepository: SocialRepository,
     internal val discordPresenceManager: DiscordPresenceManager,
     internal val coreOptionsRepo: CoreOptionsRepository,
+    internal val vulkanDriverRepository: com.nendo.argosy.data.emulator.VulkanDriverRepository,
     private val playStatsRepo: com.nendo.argosy.data.repository.PlayStatsRepository,
     private val biosRepository: com.nendo.argosy.data.repository.BiosRepository,
     private val savePathValidator: com.nendo.argosy.data.emulator.SavePathValidator,
@@ -161,6 +168,7 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private var jellyfinSignInJob: Job? = null
+    internal var launchTargetsJob: Job? = null
     private val ambientCovers = java.util.concurrent.ConcurrentHashMap<Long, List<String>>()
 
     suspend fun ambientShowcaseCovers(platformId: Long?): List<String> {
@@ -186,6 +194,11 @@ class SettingsViewModel @Inject constructor(
 
     internal val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    val controllerSeats = com.nendo.argosy.ui.screens.settings.components.ControllerSeatController(
+        repository = inputConfigRepository,
+        scope = viewModelScope
+    )
 
     internal val _openUrlEvent = MutableSharedFlow<String>()
     val openUrlEvent: SharedFlow<String> = _openUrlEvent.asSharedFlow()
@@ -284,6 +297,7 @@ class SettingsViewModel @Inject constructor(
         observeAvatarPreferences()
         routeObservePlatformLibretroSettings(this)
         routeObservePlatforms(this)
+        routeObserveControllerOrder(this)
         loadSettings()
         driversDelegate.loadGpuInfo()
         raDelegate.initialize(viewModelScope)
@@ -365,6 +379,7 @@ class SettingsViewModel @Inject constructor(
     fun dismissVariantPicker() = emulatorDelegate.dismissVariantPicker()
     fun navigateToBuiltinVideo() = emulatorDelegate.navigateToBuiltinVideo(viewModelScope)
     fun navigateToBuiltinControls() = emulatorDelegate.navigateToBuiltinControls(viewModelScope)
+    fun navigateToBuiltinSaves() = emulatorDelegate.navigateToBuiltinSaves(viewModelScope)
     fun navigateToCoreManagement() = emulatorDelegate.navigateToCoreManagement(viewModelScope)
     fun navigateToCoreOptions() = emulatorDelegate.navigateToCoreOptions(viewModelScope)
     fun navigateToCoreOptionsForPlatform() {
@@ -608,19 +623,22 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun navigateToBuiltinVideoForPlatform(platformIndex: Int) {
-        val config = _uiState.value.emulators.platforms.getOrNull(platformIndex) ?: return
-        val ctxIndex = _uiState.value.builtinVideo.availablePlatforms
-            .indexOfFirst { it.platformId == config.platform.id }
-        if (ctxIndex >= 0) {
-            _uiState.update {
-                it.copy(builtinVideo = it.builtinVideo.copy(platformContextIndex = ctxIndex + 1))
-            }
-        }
+        if (!selectBuiltinPlatformContext(platformIndex)) return
         emulatorDelegate.navigateToBuiltinVideo(viewModelScope)
     }
 
     fun navigateToBuiltinControlsForPlatform(platformIndex: Int) {
-        val config = _uiState.value.emulators.platforms.getOrNull(platformIndex) ?: return
+        if (!selectBuiltinPlatformContext(platformIndex)) return
+        emulatorDelegate.navigateToBuiltinControls(viewModelScope)
+    }
+
+    fun navigateToBuiltinSavesForPlatform(platformIndex: Int) {
+        if (!selectBuiltinPlatformContext(platformIndex)) return
+        emulatorDelegate.navigateToBuiltinSaves(viewModelScope)
+    }
+
+    private fun selectBuiltinPlatformContext(platformIndex: Int): Boolean {
+        val config = _uiState.value.emulators.platforms.getOrNull(platformIndex) ?: return false
         val ctxIndex = _uiState.value.builtinVideo.availablePlatforms
             .indexOfFirst { it.platformId == config.platform.id }
         if (ctxIndex >= 0) {
@@ -628,7 +646,7 @@ class SettingsViewModel @Inject constructor(
                 it.copy(builtinVideo = it.builtinVideo.copy(platformContextIndex = ctxIndex + 1))
             }
         }
-        emulatorDelegate.navigateToBuiltinControls(viewModelScope)
+        return true
     }
 
     fun getInstalledCoreIds(): Set<String> =
@@ -723,9 +741,6 @@ class SettingsViewModel @Inject constructor(
     fun setBuiltinDpadAsAnalog(enabled: Boolean) = routeSetBuiltinDpadAsAnalog(this, enabled)
     fun showControllerOrderModal() = routeShowControllerOrderModal(this)
     fun hideControllerOrderModal() = routeHideControllerOrderModal(this)
-    fun assignControllerToPort(port: Int, device: android.view.InputDevice) = routeAssignControllerToPort(this, port, device)
-    fun clearControllerOrder() = routeClearControllerOrder(this)
-    fun getControllerOrder() = inputConfigRepository.observeControllerOrder()
     fun showInputMappingModal() = routeShowInputMappingModal(this)
     fun hideInputMappingModal() = routeHideInputMappingModal(this)
     fun setTouchEnabled(enabled: Boolean) = routeSetTouchEnabled(this, enabled)
@@ -741,7 +756,12 @@ class SettingsViewModel @Inject constructor(
     fun setTouchGenesis6Button(enabled: Boolean) = routeSetTouchGenesis6Button(this, enabled)
     fun showTouchLayoutEditor() = routeShowTouchLayoutEditor(this)
     fun hideTouchLayoutEditor() = routeHideTouchLayoutEditor(this)
-    fun getConnectedControllers() = inputConfigRepository.getConnectedControllers()
+    val connectedControllers: StateFlow<List<com.nendo.argosy.data.repository.ControllerInfo>> =
+        inputConfigRepository.observeConnectedControllers()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val activeController: StateFlow<com.nendo.argosy.core.input.ActiveController?> =
+        connectedControllerTracker.activeController
+    fun holdActiveController(held: Boolean) = connectedControllerTracker.holdActiveController(held)
 
     suspend fun getControllerMapping(
         controller: com.nendo.argosy.data.repository.ControllerInfo,
@@ -875,6 +895,13 @@ class SettingsViewModel @Inject constructor(
     fun cycleBuiltinOverscanCrop(direction: Int) = routeCycleBuiltinOverscanCrop(this, direction)
     fun cycleBuiltinRewindSpeed(direction: Int) = routeCycleBuiltinRewindSpeed(this, direction)
     fun cycleBuiltinRewindBufferDuration(direction: Int) = routeCycleBuiltinRewindBufferDuration(this, direction)
+    fun cycleGraphicsBackend(direction: Int) = routeCycleGraphicsBackend(this, direction)
+    fun selectGraphicsBackend(index: Int) = routeSelectGraphicsBackend(this, index)
+    fun resetGraphicsBackend() = routeResetGraphicsBackend(this)
+    fun cycleGpuDriver(direction: Int) = routeCycleGpuDriver(this, direction)
+    fun setGpuDriver(token: String) = routeSetGpuDriver(this, token)
+    fun resetGpuDriver() = routeResetGpuDriver(this)
+    fun installVulkanDriver(fileName: String) = routeInstallVulkanDriver(this, fileName)
     fun updatePlatformLibretroSetting(setting: LibretroSettingDef, value: String?) = routeUpdatePlatformLibretroSetting(this, setting, value)
     fun resetAllPlatformLibretroSettings() = routeResetAllPlatformLibretroSettings(this)
     fun updatePlatformControlSetting(field: String, value: Boolean?) = routeUpdatePlatformControlSetting(this, field, value)
@@ -882,8 +909,9 @@ class SettingsViewModel @Inject constructor(
     fun loadCoreManagementState(preserveFocus: Boolean = false) = routeLoadCoreManagementState(this, preserveFocus)
     fun moveCoreManagementPlatformFocus(delta: Int): Boolean = routeMoveCoreManagementPlatformFocus(this, delta)
     fun moveCoreManagementCoreFocus(delta: Int): Boolean = routeMoveCoreManagementCoreFocus(this, delta)
-    fun selectCoreForPlatform() = routeSelectCoreForPlatform(this)
-    fun selectCoreAt(platformIndex: Int, coreIndex: Int) = routeSelectCoreAt(this, platformIndex, coreIndex)
+    fun confirmCoreManagement() = routeCoreManagementConfirm(this)
+    fun selectCoreAt(rowIndex: Int, coreIndex: Int) = routeSelectCoreAt(this, rowIndex, coreIndex)
+    fun updateAllCores() = routeTapUpdateAllCores(this)
 
     fun loadCoreOptionsState() = routeLoadCoreOptionsState(this)
     fun cycleCoreOptionsPlatformContext(direction: Int) = routeCycleCoreOptionsPlatformContext(this, direction)
@@ -981,6 +1009,16 @@ class SettingsViewModel @Inject constructor(
     fun navigateToSection(section: SettingsSection) = routeNavigateToSection(this, section)
 
     fun setFocusIndex(index: Int) { _uiState.update { it.copy(focusedIndex = index) } }
+
+    fun touchFocusRow(index: Int) = routeTouchFocus(this, index)
+
+    fun enterTouchMode() {
+        _uiState.update { if (it.isTouchMode) it else it.copy(isTouchMode = true) }
+    }
+
+    fun exitTouchMode() {
+        _uiState.update { if (it.isTouchMode) it.copy(isTouchMode = false) else it }
+    }
 
     fun requestEnumPicker(key: String) {
         _uiState.update { it.copy(enumPickerKey = key, enumPickerToken = it.enumPickerToken + 1) }
@@ -1131,9 +1169,20 @@ class SettingsViewModel @Inject constructor(
         routeAdjustHomeLayoutField(this, field, direction)
     fun setPresentationStyle(style: com.nendo.argosy.domain.model.PresentationStyle) =
         displayDelegate.setPresentationStyle(viewModelScope, style)
+    fun adjustPresentationBackgroundBlur(delta: Int) = routeAdjustPresentationBackgroundBlur(this, delta)
     fun setUseAccentColorFooter(use: Boolean) = displayDelegate.setUseAccentColorFooter(viewModelScope, use)
     fun setCompactFooter(enabled: Boolean) = displayDelegate.setCompactFooter(viewModelScope, enabled)
+    fun setHideSystemNavigationBar(hide: Boolean) =
+        displayDelegate.setHideSystemNavigationBar(viewModelScope, hide)
+    fun setHideSystemStatusBar(hide: Boolean) = displayDelegate.setHideSystemStatusBar(viewModelScope, hide)
     fun setLockScreenArt(enabled: Boolean) = displayDelegate.setLockScreenArt(viewModelScope, enabled)
+    fun setPreLaunchRecaps(enabled: Boolean) = displayDelegate.setPreLaunchRecaps(viewModelScope, enabled)
+    fun setMonthlyRecap(enabled: Boolean) = displayDelegate.setMonthlyRecap(viewModelScope, enabled)
+    fun setHomeAppAvailable(available: Boolean) =
+        displayDelegate.setHomeAppAvailable(viewModelScope, available)
+    fun refreshDefaultHome() = displayDelegate.refreshDefaultHome(viewModelScope)
+    fun setIconPack(packageName: String?) = displayDelegate.setIconPack(viewModelScope, packageName)
+    fun cycleIconPack(direction: Int) = displayDelegate.cycleIconPack(viewModelScope, direction)
 
     fun showGripControllerModal() = displayDelegate.showGripControllerModal()
 
@@ -1175,6 +1224,8 @@ class SettingsViewModel @Inject constructor(
     fun navigateToPlayTimePlatforms() = routePushSection(this, SettingsSection.PLAY_TIME_PLATFORMS)
     fun navigateToPlayTimeDevices() = routePushSection(this, SettingsSection.PLAY_TIME_DEVICES)
     fun navigateToPlayTimeGames() = routePushSection(this, SettingsSection.PLAY_TIME_GAMES)
+
+    fun openLastMonthRecap() = playTimeDelegate.openLastMonthRecap()
 
     fun uploadPlaySessionsNow() = playTimeDelegate.uploadNow(viewModelScope)
     fun refreshPlaySessionsFromRomm() = playTimeDelegate.refreshFromRomm(viewModelScope)
@@ -1435,6 +1486,31 @@ class SettingsViewModel @Inject constructor(
     fun setDisplayRoleOverride(value: com.nendo.argosy.data.preferences.DisplayRoleOverride) =
         routeSetDisplayRoleOverride(this, value)
 
+    fun cycleGamesLaunchTarget(direction: Int = 1) = routeCycleLaunchTarget(this, LaunchTargetKind.GAMES, direction)
+
+    fun cycleAppsLaunchTarget(direction: Int = 1) = routeCycleLaunchTarget(this, LaunchTargetKind.APPS, direction)
+
+    fun selectGamesLaunchTarget(index: Int) = routeSelectLaunchTarget(this, LaunchTargetKind.GAMES, index)
+
+    fun selectAppsLaunchTarget(index: Int) = routeSelectLaunchTarget(this, LaunchTargetKind.APPS, index)
+
+    fun navigateToLaunchTargets() = routeNavigateToLaunchTargets(this)
+
+    fun reloadLaunchTargetEntries() = routeLoadLaunchTargetEntries(this)
+
+    fun openLaunchTargetPicker(): Boolean = routeOpenLaunchTargetPicker(this)
+
+    fun openLaunchTargetPickerAt(focusIndex: Int) {
+        setFocusIndex(focusIndex)
+        routeOpenLaunchTargetPicker(this)
+    }
+
+    fun closeLaunchTargetPicker() = routeCloseLaunchTargetPicker(this)
+
+    fun pickLaunchTarget(index: Int) = routePickLaunchTarget(this, index)
+
+    fun resetLaunchTarget(key: String) = routeResetLaunchTarget(this, key)
+
     fun setSoundVolume(volume: Int) = soundsDelegate.setSoundVolume(viewModelScope, volume)
 
     fun adjustSoundVolume(delta: Int) = routeAdjustSoundVolume(this, delta)
@@ -1472,6 +1548,7 @@ class SettingsViewModel @Inject constructor(
     fun refreshDetectedLayout() = controlsDelegate.refreshDetectedLayout()
     fun setSwapStartSelect(enabled: Boolean) = controlsDelegate.setSwapStartSelect(viewModelScope, enabled)
     fun setQuickNavigation(enabled: Boolean) = controlsDelegate.setQuickNavigation(viewModelScope, enabled)
+    fun setNavBarAutoHide(enabled: Boolean) = controlsDelegate.setNavBarAutoHide(viewModelScope, enabled)
     fun setSelectLCombo(value: String) = controlsDelegate.setSelectLCombo(viewModelScope, value)
     fun setSelectRCombo(value: String) = controlsDelegate.setSelectRCombo(viewModelScope, value)
     fun setMenuWrapMode(mode: com.nendo.argosy.data.preferences.MenuWrapMode) = controlsDelegate.setMenuWrapMode(viewModelScope, mode)
@@ -1516,7 +1593,6 @@ class SettingsViewModel @Inject constructor(
         installerDelegate.selectVariantAt(viewModelScope, index)
     fun openInstallerImeSettings() = installerDelegate.openImeSettings()
     fun showInstallerImePicker() = installerDelegate.showImePicker()
-    fun openStorageSettings() = permissionsDelegate.openStorageSettings()
     fun openNotificationSettings() = permissionsDelegate.openNotificationSettings()
     fun openWriteSettings() = permissionsDelegate.openWriteSettings()
     fun openDisplayOverlaySettings() = permissionsDelegate.openDisplayOverlaySettings()
@@ -2015,6 +2091,34 @@ class SettingsViewModel @Inject constructor(
             )
         }
     }
+    fun openRAWebApiKeyEditor() = raDelegate.openWebApiKeyEditor()
+    fun closeRAWebApiKeyEditor() = raDelegate.closeWebApiKeyEditor()
+    fun setRAWebApiKeyDraft(text: String) = raDelegate.setWebApiKeyDraft(text)
+    fun moveRAWebApiKeyRow(row: TextEntryRow) = raDelegate.moveWebApiKeyRow(row)
+    fun moveRAWebApiKeyButton(delta: Int) = raDelegate.moveWebApiKeyButton(delta)
+    fun confirmRAWebApiKeyEditor() =
+        raDelegate.confirmWebApiKeyEditor(viewModelScope, ::notifyRAWebApiKeySaved, ::notifyRAWebApiKeyCleared)
+    fun runRAWebApiKeyAction(action: RAWebApiKeyAction) =
+        raDelegate.runWebApiKeyAction(viewModelScope, action, ::notifyRAWebApiKeySaved, ::notifyRAWebApiKeyCleared)
+
+    private fun notifyRAWebApiKeySaved() {
+        notificationManager.show(
+            title = NotificationText.Res(R.string.settings_ra_web_api_key_saved_title),
+            subtitle = NotificationText.Res(R.string.settings_ra_web_api_key_saved_subtitle),
+            type = com.nendo.argosy.core.notification.NotificationType.SUCCESS,
+            duration = com.nendo.argosy.core.notification.NotificationDuration.MEDIUM
+        )
+    }
+
+    private fun notifyRAWebApiKeyCleared() {
+        notificationManager.show(
+            title = NotificationText.Res(R.string.settings_ra_web_api_key_cleared_title),
+            subtitle = NotificationText.Res(R.string.settings_ra_web_api_key_cleared_subtitle),
+            type = com.nendo.argosy.core.notification.NotificationType.SUCCESS,
+            duration = com.nendo.argosy.core.notification.NotificationDuration.MEDIUM
+        )
+    }
+
     fun setRAProxyEnabled(enabled: Boolean) = routeSetRAProxyEnabled(this, enabled)
     fun setRAProxyAddress(address: String) = raDelegate.setProxyAddress(viewModelScope, address)
 

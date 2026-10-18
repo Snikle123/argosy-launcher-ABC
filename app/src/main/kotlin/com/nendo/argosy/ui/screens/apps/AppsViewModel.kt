@@ -111,16 +111,17 @@ class AppsViewModel @Inject constructor(
     private val _events = MutableSharedFlow<AppsEvent>()
     val events: SharedFlow<AppsEvent> = _events.asSharedFlow()
 
+    private val sessionStateStore by lazy { com.nendo.argosy.data.preferences.SessionStateStore(context) }
+
     private var hiddenApps: Set<String> = emptySet()
     private var visibleSystemApps: Set<String> = emptySet()
-    private var secondaryHomeApps: Set<String> = emptySet()
+    private var secondaryHomeApps: List<String> = emptyList()
     private var customOrder: List<String> = emptyList()
 
     init {
         _uiState.update { it.copy(hasSecondaryDisplay = displayAffinityHelper.hasSecondaryDisplay) }
-        loadApps()
         observePackageChanges()
-        observeGridDensity()
+        observePreferences()
     }
 
     private fun observePackageChanges() {
@@ -131,10 +132,18 @@ class AppsViewModel @Inject constructor(
         }
     }
 
-    private fun observeGridDensity() {
+    private fun observePreferences() {
         viewModelScope.launch {
             preferencesRepository.preferences.collect { prefs ->
-                _uiState.update { it.copy(gridDensity = prefs.gridDensity) }
+                secondaryHomeApps = prefs.secondaryHomeApps
+                _uiState.update { state ->
+                    state.copy(
+                        gridDensity = prefs.gridDensity,
+                        apps = state.apps.map { app ->
+                            app.copy(isOnSecondaryHome = app.packageName in secondaryHomeApps)
+                        }
+                    )
+                }
             }
         }
     }
@@ -146,7 +155,6 @@ class AppsViewModel @Inject constructor(
             val prefs = preferencesRepository.preferences.first()
             hiddenApps = prefs.hiddenApps
             visibleSystemApps = prefs.visibleSystemApps
-            secondaryHomeApps = prefs.secondaryHomeApps
             customOrder = prefs.appOrder
 
             val showHidden = _uiState.value.showHiddenApps
@@ -291,7 +299,7 @@ class AppsViewModel @Inject constructor(
                 toggleHomeStatus(app.packageName, app.label, app.isOnHome)
             }
             AppContextMenuItem.TOGGLE_SECONDARY_HOME -> {
-                toggleSecondaryHomeStatus(app.packageName, app.isOnSecondaryHome)
+                toggleSecondaryHomeStatus(app.packageName)
             }
             AppContextMenuItem.TOGGLE_VISIBILITY -> {
                 toggleAppVisibility(app.packageName, app.isHidden, app.isSystemApp)
@@ -379,28 +387,10 @@ class AppsViewModel @Inject constructor(
         }
     }
 
-    private fun toggleSecondaryHomeStatus(packageName: String, isCurrentlyOnSecondaryHome: Boolean) {
+    private fun toggleSecondaryHomeStatus(packageName: String) {
         viewModelScope.launch {
-            val newSecondaryHomeApps = if (isCurrentlyOnSecondaryHome) {
-                secondaryHomeApps - packageName
-            } else {
-                secondaryHomeApps + packageName
-            }
-            preferencesRepository.setSecondaryHomeApps(newSecondaryHomeApps)
-            secondaryHomeApps = newSecondaryHomeApps
-            soundManager.play(if (isCurrentlyOnSecondaryHome) SoundType.UNFAVORITE else SoundType.FAVORITE)
-
-            _uiState.update { state ->
-                state.copy(
-                    apps = state.apps.map { app ->
-                        if (app.packageName == packageName) {
-                            app.copy(isOnSecondaryHome = !isCurrentlyOnSecondaryHome)
-                        } else {
-                            app
-                        }
-                    }
-                )
-            }
+            val pinned = preferencesRepository.toggleDockPin(packageName)
+            soundManager.play(if (pinned) SoundType.FAVORITE else SoundType.UNFAVORITE)
         }
     }
 
@@ -414,17 +404,7 @@ class AppsViewModel @Inject constructor(
             saveReorderAndExit()
             return
         }
-        if (state.hasSecondaryDisplay) {
-            val dsm = DualScreenManagerHolder.instance
-            val presentation = displayAffinityHelper
-                .getRoleDisplayIds(dsm?.isRolesSwapped?.value == true)
-                ?.second
-            state.focusedApp?.let {
-                launchApp(it.packageName, overrideDisplayId = presentation)
-            }
-        } else {
-            enterReorderMode()
-        }
+        enterReorderMode()
     }
 
     fun enterReorderMode() {
@@ -565,28 +545,20 @@ class AppsViewModel @Inject constructor(
 
     private fun launchApp(
         packageName: String,
-        pinnedScreenKey: String? = null,
-        overrideDisplayId: Int? = null
+        pinnedScreenKey: String? = null
     ) {
         val intent = appsRepository.getLaunchIntent(packageName) ?: return
         viewModelScope.launch {
             if (pinnedScreenKey != null) {
                 preferencesRepository.setAppDisplayTarget(packageName, pinnedScreenKey)
             }
-            val options = if (overrideDisplayId != null) {
-                displayAffinityHelper.getActivityOptions(
-                    forEmulator = false,
-                    overrideDisplayId = overrideDisplayId
-                )
-            } else {
-                val dsm = DualScreenManagerHolder.instance
-                displayAffinityHelper.getAppLaunchOptions(
-                    preferredScreenKey = pinnedScreenKey
-                        ?: preferencesRepository.preferences.first().appDisplayTargets[packageName],
-                    rolesSwapped = dsm?.isRolesSwapped?.value == true,
-                    occupiedDisplayId = dsm?.emulatorDisplayId
-                )
-            }
+            val prefs = preferencesRepository.preferences.first()
+            val options = displayAffinityHelper.getAppLaunchOptions(
+                preferredScreenKey = pinnedScreenKey ?: prefs.appDisplayTargets[packageName],
+                rolesSwapped = sessionStateStore.isRolesSwapped(),
+                occupiedDisplayId = DualScreenManagerHolder.instance?.emulatorDisplayId,
+                defaultTarget = prefs.appsDisplayTarget
+            )
             _events.emit(AppsEvent.Launch(intent, options))
         }
     }

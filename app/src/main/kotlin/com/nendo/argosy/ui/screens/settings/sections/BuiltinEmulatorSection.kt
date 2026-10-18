@@ -19,7 +19,9 @@ import com.nendo.argosy.ui.components.HudCorner
 import com.nendo.argosy.ui.components.SegmentedPreference
 import com.nendo.argosy.ui.components.SwitchPreference
 import com.nendo.argosy.ui.screens.settings.ARCHITECTURE_OPTIONS
+import com.nendo.argosy.ui.screens.settings.components.LocalSettingsTouchFocus
 import com.nendo.argosy.ui.screens.settings.components.SectionHeader
+import com.nendo.argosy.ui.screens.settings.components.settingsRowItem
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
 import com.nendo.argosy.ui.theme.Dimens
@@ -31,6 +33,7 @@ internal enum class BuiltinEmulatorItem {
     ARCHITECTURE,
     VIDEO,
     CONTROLS,
+    SAVES,
     CORE_MANAGEMENT,
     CORE_OPTIONS,
     TWO_COLUMN,
@@ -57,14 +60,18 @@ fun BuiltinEmulatorSection(
     val statusBarHeaderOffset =
         if (builtinEnabled && uiState.focusedIndex >= BuiltinEmulatorItem.HUD_ENABLED.focusIndex) 1 else 0
 
-    FocusedScroll(listState = listState, focusedIndex = uiState.focusedIndex + statusBarHeaderOffset)
+    FocusedScroll(
+        listState = listState,
+        focusedIndex = uiState.focusedIndex + statusBarHeaderOffset,
+        isTouchMode = LocalSettingsTouchFocus.current.isTouchMode
+    )
 
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize().padding(Dimens.spacingMd),
         verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
     ) {
-        item(key = "builtin_toggle") {
+        settingsRowItem(key = "builtin_toggle", focusIndex = BuiltinEmulatorItem.ENABLE.focusIndex) {
             SwitchPreference(
                 title = stringResource(R.string.settings_builtin_enable_title),
                 subtitle = stringResource(R.string.settings_builtin_enable_subtitle),
@@ -74,7 +81,7 @@ fun BuiltinEmulatorSection(
             )
         }
         if (builtinEnabled) {
-            item(key = "builtin_architecture") {
+            settingsRowItem(key = "builtin_architecture", focusIndex = BuiltinEmulatorItem.ARCHITECTURE.focusIndex) {
                 val architectureOptions = remember { ARCHITECTURE_OPTIONS }
                 SegmentedPreference(
                     title = stringResource(R.string.settings_builtin_architecture_title),
@@ -84,7 +91,7 @@ fun BuiltinEmulatorSection(
                     onSelect = { viewModel.setBuiltinArchitecture(architectureOptions[it]) }
                 )
             }
-            item(key = "builtin_video") {
+            settingsRowItem(key = "builtin_video", focusIndex = BuiltinEmulatorItem.VIDEO.focusIndex) {
                 ActionPreference(
                     title = stringResource(R.string.settings_builtin_video_title),
                     subtitle = stringResource(R.string.settings_builtin_video_subtitle),
@@ -95,7 +102,7 @@ fun BuiltinEmulatorSection(
                     }
                 )
             }
-            item(key = "builtin_controls") {
+            settingsRowItem(key = "builtin_controls", focusIndex = BuiltinEmulatorItem.CONTROLS.focusIndex) {
                 ActionPreference(
                     title = stringResource(R.string.settings_builtin_controls_title),
                     subtitle = stringResource(R.string.settings_builtin_controls_subtitle),
@@ -106,7 +113,18 @@ fun BuiltinEmulatorSection(
                     }
                 )
             }
-            item(key = "builtin_cores") {
+            settingsRowItem(key = "builtin_saves", focusIndex = BuiltinEmulatorItem.SAVES.focusIndex) {
+                ActionPreference(
+                    title = stringResource(R.string.settings_builtin_saves_title),
+                    subtitle = stringResource(R.string.settings_builtin_saves_subtitle),
+                    isFocused = uiState.focusedIndex == BuiltinEmulatorItem.SAVES.focusIndex,
+                    onClick = {
+                        viewModel.setFocusIndex(BuiltinEmulatorItem.SAVES.focusIndex)
+                        viewModel.navigateToBuiltinSaves()
+                    }
+                )
+            }
+            settingsRowItem(key = "builtin_cores", focusIndex = BuiltinEmulatorItem.CORE_MANAGEMENT.focusIndex) {
                 val updatesAvailable = emulators.coreUpdatesAvailable
                 ActionPreference(
                     title = stringResource(R.string.settings_builtin_cores_title),
@@ -131,7 +149,7 @@ fun BuiltinEmulatorSection(
                     }
                 )
             }
-            item(key = "builtin_core_options") {
+            settingsRowItem(key = "builtin_core_options", focusIndex = BuiltinEmulatorItem.CORE_OPTIONS.focusIndex) {
                 ActionPreference(
                     title = stringResource(R.string.settings_builtin_core_options_title),
                     subtitle = stringResource(R.string.settings_builtin_core_options_subtitle),
@@ -142,7 +160,7 @@ fun BuiltinEmulatorSection(
                     }
                 )
             }
-            item(key = "builtin_two_column_menu") {
+            settingsRowItem(key = "builtin_two_column_menu", focusIndex = BuiltinEmulatorItem.TWO_COLUMN.focusIndex) {
                 SwitchPreference(
                     title = stringResource(R.string.settings_builtin_two_column_title),
                     subtitle = if (emulators.ingameMenuTwoColumn) {
@@ -159,7 +177,7 @@ fun BuiltinEmulatorSection(
                 Spacer(modifier = Modifier.height(Dimens.spacingMd))
                 SectionHeader(stringResource(R.string.settings_builtin_section_hud))
             }
-            item(key = "builtin_hud_enabled") {
+            settingsRowItem(key = "builtin_hud_enabled", focusIndex = BuiltinEmulatorItem.HUD_ENABLED.focusIndex) {
                 SwitchPreference(
                     title = stringResource(R.string.settings_builtin_hud_enabled_title),
                     subtitle = if (emulators.hudEnabled) {
@@ -173,7 +191,7 @@ fun BuiltinEmulatorSection(
                 )
             }
             if (emulators.hudEnabled) {
-                item(key = "builtin_hud_corner") {
+                settingsRowItem(key = "builtin_hud_corner", focusIndex = BuiltinEmulatorItem.HUD_CORNER.focusIndex) {
                     SegmentedPreference(
                         title = stringResource(R.string.settings_builtin_hud_corner_title),
                         options = HudCorner.entries.map { stringResource(it.labelRes) },
@@ -182,7 +200,7 @@ fun BuiltinEmulatorSection(
                         onSelect = { index -> viewModel.setHudCorner(HudCorner.entries[index].name) }
                     )
                 }
-                item(key = "builtin_hud_battery") {
+                settingsRowItem(key = "builtin_hud_battery", focusIndex = BuiltinEmulatorItem.HUD_BATTERY.focusIndex) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_builtin_hud_battery_title),
                         isEnabled = emulators.hudShowBattery,
@@ -190,7 +208,7 @@ fun BuiltinEmulatorSection(
                         onToggle = { viewModel.setHudShowBattery(it) }
                     )
                 }
-                item(key = "builtin_hud_clock") {
+                settingsRowItem(key = "builtin_hud_clock", focusIndex = BuiltinEmulatorItem.HUD_CLOCK.focusIndex) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_builtin_hud_clock_title),
                         isEnabled = emulators.hudShowClock,
@@ -198,7 +216,7 @@ fun BuiltinEmulatorSection(
                         onToggle = { viewModel.setHudShowClock(it) }
                     )
                 }
-                item(key = "builtin_hud_playtime") {
+                settingsRowItem(key = "builtin_hud_playtime", focusIndex = BuiltinEmulatorItem.HUD_PLAYTIME.focusIndex) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_builtin_hud_playtime_title),
                         subtitle = stringResource(R.string.settings_builtin_hud_playtime_subtitle),
@@ -207,7 +225,7 @@ fun BuiltinEmulatorSection(
                         onToggle = { viewModel.setHudShowPlaytime(it) }
                     )
                 }
-                item(key = "builtin_hud_fps") {
+                settingsRowItem(key = "builtin_hud_fps", focusIndex = BuiltinEmulatorItem.HUD_FPS.focusIndex) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_builtin_hud_fps_title),
                         subtitle = stringResource(R.string.settings_builtin_hud_fps_subtitle),
@@ -216,7 +234,7 @@ fun BuiltinEmulatorSection(
                         onToggle = { viewModel.setHudShowFps(it) }
                     )
                 }
-                item(key = "builtin_hud_last_save") {
+                settingsRowItem(key = "builtin_hud_last_save", focusIndex = BuiltinEmulatorItem.HUD_LAST_SAVE.focusIndex) {
                     SwitchPreference(
                         title = stringResource(R.string.settings_builtin_hud_last_save_title),
                         subtitle = stringResource(R.string.settings_builtin_hud_last_save_subtitle),

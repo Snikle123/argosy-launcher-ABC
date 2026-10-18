@@ -1,22 +1,26 @@
 package com.nendo.argosy.ui.components
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.nendo.argosy.ui.theme.Dimens
+import com.nendo.argosy.ui.theme.Motion
 
 enum class FooterVariant { STANDARD, SUBTLE }
 
@@ -33,8 +37,6 @@ data class FooterEntry(
 class FooterHostController {
     private var nextId = 0L
     private val stack = mutableStateListOf<Pair<Long, FooterEntry>>()
-    var measuredHeight: Dp by mutableStateOf(0.dp)
-        internal set
 
     internal fun allocateId(): Long = nextId++
 
@@ -48,9 +50,31 @@ class FooterHostController {
     }
 
     val top: FooterEntry? get() = stack.lastOrNull()?.second
+
+    private val tappableHints = mutableMapOf<Any, LayoutCoordinates>()
+
+    internal fun trackTappableHint(key: Any, coordinates: LayoutCoordinates) {
+        tappableHints[key] = coordinates
+    }
+
+    internal fun untrackTappableHint(key: Any) {
+        tappableHints.remove(key)
+    }
+
+    fun hasTappableHintAt(windowPosition: Offset): Boolean =
+        isBarVisible && tappableHints.values.any { coordinates ->
+            coordinates.isAttached && coordinates.boundsInWindow().contains(windowPosition)
+        }
 }
 
 val LocalFooterHost = staticCompositionLocalOf { FooterHostController() }
+val LocalFooterHostVisible = staticCompositionLocalOf { true }
+internal val LocalFooterHintTracker = staticCompositionLocalOf<FooterHostController?> { null }
+
+/**
+ * Bottom space held by an always-visible floating nav bar, on top of whatever the guide bar holds.
+ */
+val LocalNavBarClearance = compositionLocalOf { 0.dp }
 
 /** Registers gamepad hints on the app-root guide bar for the lifetime of the calling composable. */
 @Composable
@@ -96,23 +120,19 @@ fun FooterHost(
     modifier: Modifier = Modifier
 ) {
     val entry = controller.top
-    val density = LocalDensity.current
-    val measuredModifier = modifier.onSizeChanged {
-        controller.measuredHeight = with(density) { it.height.toDp() }
-    }
-    DisposableEffect(controller) {
-        onDispose { controller.measuredHeight = 0.dp }
-    }
-    CompositionLocalProvider(LocalFooterStyle provides (entry?.style ?: FooterStyleConfig())) {
+    CompositionLocalProvider(
+        LocalFooterStyle provides (entry?.style ?: FooterStyleConfig()),
+        LocalFooterHintTracker provides controller
+    ) {
         when (entry?.variant) {
             FooterVariant.SUBTLE -> SubtleFooterBar(
                 hints = entry.hints.map { it.button to it.action },
-                modifier = measuredModifier,
+                modifier = modifier,
                 onHintClick = entry.onHintClick
             )
             else -> FooterBarWithState(
                 hints = entry?.hints ?: emptyList(),
-                modifier = measuredModifier,
+                modifier = modifier,
                 onHintClick = entry?.onHintClick,
                 trailingContent = entry?.trailingContent,
                 forceVisible = entry?.forced == true
@@ -126,9 +146,22 @@ val FooterHostController.isBarVisible: Boolean
         entry.forced || entry.hints.any { !isObviousHint(it.button) }
     } == true
 
-/** Reserves footer space only while the singleton bar is actually showing. */
 @Composable
 fun FooterSpacer() {
     val controller = LocalFooterHost.current
-    Spacer(Modifier.height(controller.measuredHeight))
+    val isBarVisible = LocalFooterHostVisible.current && controller.isBarVisible
+    val height by animateDpAsState(
+        targetValue = if (isBarVisible) Dimens.footerHeight else 0.dp,
+        animationSpec = tween(Motion.durationContent, easing = Motion.argosyEase),
+        label = "footer-spacer",
+    )
+    Spacer(Modifier.height(height + LocalNavBarClearance.current))
+}
+
+@Composable
+fun withNavBarClearance(bottom: Dp): Dp = bottom + LocalNavBarClearance.current
+
+@Composable
+fun NavBarClearanceSpacer() {
+    Spacer(Modifier.height(LocalNavBarClearance.current))
 }
