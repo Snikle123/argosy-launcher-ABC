@@ -97,7 +97,7 @@ internal fun rememberHomeTitleMetadata(uiState: HomeUiState): List<HomeMetadataM
                 }
                 is HomeRowItem.Media -> HomeMetadataMeasureInput(item.media.subtitle, emptyList(), null, 0)
                 is HomeRowItem.ViewAll -> HomeMetadataMeasureInput(
-                        developer = null,
+                        subtitle = null,
                         badges = emptyList(),
                         friendsLabel = null,
                         avatarCount = 0
