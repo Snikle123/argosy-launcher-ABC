@@ -601,6 +601,17 @@ object EmulatorRegistry {
             releaseSource = ReleaseSource.Gitea("https://git.eden-emu.dev", "eden-emu/eden")
         ),
         EmulatorDef(
+            id = "eden_duo",
+            packageName = "dev.igawa6.edenduo",
+            displayName = "Eden Duo",
+            supportedPlatforms = setOf("switch"),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "org.yuzu.yuzu_emu.activities.EmulationActivity",
+            ),
+            defaultLaunchMethod = LaunchMethod.SHELL,
+            downloadUrl = "https://github.com/igawa6/eden-duo/releases"
+        ),
+        EmulatorDef(
             id = "lemon",
             packageName = "dev.lemon.lemon_emulator",
             displayName = "Lemon",
@@ -1091,6 +1102,24 @@ object EmulatorRegistry {
             downloadUrl = "https://play.google.com/store/apps/details?id=com.armsx3.play"
         ),
 
+        EmulatorDef(
+            id = "phobos",
+            packageName = "com.phobos.emulator",
+            displayName = "Phobos",
+            supportedPlatforms = setOf(
+                "nes", "fds", "snes", "n64", "n64dd", "gb", "gbc", "gba",
+                "sg1000", "sms", "genesis", "scd", "gg", "psx",
+                "tg16", "supergrafx", "neogeo", "neogeocd", "ngp", "ngpc",
+                "atari2600", "coleco", "wonderswan", "wsc", "msx", "msx2", "zx"
+            ),
+            launchConfig = LaunchConfig.Custom(
+                activityClass = "com.phobos.emulator.MainActivity",
+                intentExtras = mapOf("platform" to ExtraValue.Platform)
+            ),
+            downloadUrl = "https://github.com/pwnedbygary/phobos/releases",
+            releaseSource = ReleaseSource.GitHub("pwnedbygary/phobos")
+        ),
+
         // Steam launchers
         EmulatorDef(
             id = "gamehub",
@@ -1159,7 +1188,7 @@ object EmulatorRegistry {
 
     private val recommendedEmulators: Map<String, List<String>> = mapOf(
         "psx" to listOf(BUILTIN_ID, "duckstation", "armsx1", "retroarch", "retroarch_64", "retroarch_32"),
-        "ps2" to listOf("nethersx2", "armsx2_refresh", "armsx2", "psx2", "pcsx2"),
+        "ps2" to listOf(BUILTIN_ID, "nethersx2", "armsx2_refresh", "armsx2", "psx2", "pcsx2"),
         "psp" to listOf(
             BUILTIN_ID, "ppsspp", "ppsspp_gold", "ppsspp_legacy", "retroarch", "retroarch_64", "retroarch_32"
         ),
@@ -1175,7 +1204,7 @@ object EmulatorRegistry {
         "gc" to listOf("dolphin", "dolphin_handheld", "dolphin_cs", "retroarch", "retroarch_64", "retroarch_32"),
         "wii" to listOf("dolphin", "dolphin_handheld", "dolphin_cs", "retroarch", "retroarch_64", "retroarch_32"),
         "wiiu" to listOf("cemu", "cemu_dualscreen"),
-        "switch" to listOf("eden", "lemon", "citron", "sudachi", "ryujinx", "yuzu", "strato", "skyline"),
+        "switch" to listOf("eden", "eden_duo", "lemon", "citron", "sudachi", "ryujinx", "yuzu", "strato", "skyline"),
         "gba" to listOf(BUILTIN_ID, "pizza_boy_gba_pro", "pizza_boy_gba", "linkboy", "retroarch", "retroarch_64", "retroarch_32"),
         "gb" to listOf(BUILTIN_ID, "pizza_boy_gb_pro", "pizza_boy_gb", "linkboy", "retroarch", "retroarch_64", "retroarch_32"),
         "gbc" to listOf(BUILTIN_ID, "pizza_boy_gb_pro", "pizza_boy_gb", "linkboy", "retroarch", "retroarch_64", "retroarch_32"),

@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -29,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
@@ -71,6 +73,7 @@ enum class InputButton {
     A, B, X, Y,
     DPAD, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, DPAD_HORIZONTAL, DPAD_VERTICAL,
     LB, RB, LB_RB, LT, RT, LT_RT,
+    RIGHT_STICK_VERTICAL,
     START, SELECT
 }
 
@@ -81,7 +84,8 @@ private fun InputButton.category(): HintCategory = when (this) {
     InputButton.DPAD_LEFT, InputButton.DPAD_RIGHT,
     InputButton.DPAD_HORIZONTAL, InputButton.DPAD_VERTICAL -> HintCategory.DPAD
     InputButton.LB, InputButton.RB, InputButton.LB_RB -> HintCategory.BUMPER
-    InputButton.LT, InputButton.RT, InputButton.LT_RT, InputButton.START, InputButton.SELECT -> HintCategory.SHOULDER_MENU
+    InputButton.LT, InputButton.RT, InputButton.LT_RT, InputButton.RIGHT_STICK_VERTICAL,
+    InputButton.START, InputButton.SELECT -> HintCategory.SHOULDER_MENU
     InputButton.A, InputButton.B, InputButton.X, InputButton.Y -> HintCategory.FACE
 }
 
@@ -112,6 +116,7 @@ fun InputButton.toPainter(): Painter? {
         InputButton.LT -> InputIcons.TriggerLeft
         InputButton.RT -> InputIcons.TriggerRight
         InputButton.LT_RT -> null
+        InputButton.RIGHT_STICK_VERTICAL -> InputIcons.RightStickVertical
         InputButton.START -> if (swapStartSelect) InputIcons.Options else InputIcons.Menu
         InputButton.SELECT -> if (swapStartSelect) InputIcons.Menu else InputIcons.Options
     }
@@ -290,7 +295,7 @@ private fun InputButton.faceButtonPriority(): Int = when (this) {
 private fun InputButton.hidePriority(): Int = when (this) {
     InputButton.X, InputButton.Y -> 4
     InputButton.LB, InputButton.RB, InputButton.LB_RB,
-    InputButton.LT, InputButton.RT, InputButton.LT_RT -> 3
+    InputButton.LT, InputButton.RT, InputButton.LT_RT, InputButton.RIGHT_STICK_VERTICAL -> 3
     InputButton.START, InputButton.SELECT -> 2
     InputButton.A, InputButton.B -> 1
     else -> 0
@@ -370,7 +375,7 @@ fun FooterBar(
             .fillMaxWidth()
             .onSizeChanged { measuredWidth = it.width }
             .footerCollapse(collapseProgress)
-            .heightIn(min = frostedChromeHeight)
+            .heightIn(min = Dimens.footerHeight)
             .frostedSurface(
                 shape = RectangleShape,
                 color = backgroundColor
@@ -444,7 +449,7 @@ fun FooterBarWithState(
             .fillMaxWidth()
             .onSizeChanged { measuredWidth = it.width }
             .footerCollapse(collapseProgress)
-            .heightIn(min = frostedChromeHeight)
+            .heightIn(min = Dimens.footerHeight)
             .frostedSurface(
                 shape = RectangleShape,
                 color = backgroundColor
@@ -487,9 +492,16 @@ private fun TappableFooterHint(
     onHintClick: ((InputButton) -> Unit)?,
     enabled: Boolean = true
 ) {
-    val clickModifier = if (onHintClick != null && enabled) {
+    val tappable = onHintClick != null && enabled
+    val tracker = LocalFooterHintTracker.current
+    val trackKey = remember { Any() }
+    DisposableEffect(tracker, tappable) {
+        onDispose { tracker?.untrackTappableHint(trackKey) }
+    }
+    val clickModifier = if (tappable) {
         Modifier
-            .clickableNoFocus { onHintClick(button) }
+            .onGloballyPositioned { tracker?.trackTappableHint(trackKey, it) }
+            .clickableNoFocus { onHintClick?.invoke(button) }
             .sizeIn(minWidth = minimumTouchTarget, minHeight = minimumTouchTarget)
     } else {
         Modifier
@@ -535,7 +547,7 @@ fun SubtleFooterBar(
             .fillMaxWidth()
             .onSizeChanged { measuredWidth = it.width }
             .footerCollapse(collapseProgress)
-            .heightIn(min = frostedChromeHeight)
+            .heightIn(min = Dimens.footerHeight)
             .frostedSurface(
                 shape = RectangleShape,
                 color = backgroundColor

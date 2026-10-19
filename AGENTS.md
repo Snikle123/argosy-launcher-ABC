@@ -24,7 +24,10 @@ exception is legitimate, and the boundary where it becomes a violation again.
   GameDetailViewModel + delegates/, SaveSyncRepository + services).
 - Compose stability contract: app/compose_stability_config.conf declares
   data.model.**, data.local.entity.**, domain.model.** and the whole of ui.**
-  stable, plus core.game.AchievementUi and hardware.CompanionInGameState. Every
+  stable, plus a few in-repo classes named one by one (AchievementUi,
+  CompanionInGameState, and services passed into composables). A named class keeps
+  only fixed public references, and scripts/ci/service_stability_checks.py fails a
+  public var, mutable collection or snapshot state on one. Every
   data class in those packages is val-only; a var or an in-place-mutated
   collection silently skips recomposition, and scripts/ci/stability_checks.py
   fails the build on one under ui/. ViewModels, delegates and holders are not
@@ -145,7 +148,7 @@ folder resolution); "tidying" them breaks resolution.
 - Input: InputDispatcher + per-screen InputHandler; index wrap via .mod().
   No Compose focus for navigation or selection - focusable() appears nowhere
   except the root key sinks, one per rendered surface: ArgosyApp for the control
-  surface, the presentation branch of MainActivity and of
+  surface, the presentation branch of ArgosyActivity and of
   SecondaryHomeActivity, and AppScreenActivity on the app-target display. Both
   activities render either ArgosyApp or
   PresentationSlotContent, so both need a sink on the presentation side. A

@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.focus.focusProperties
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -200,7 +201,8 @@ fun CyclePreference(
     valueFooter: (@Composable () -> Unit)? = null,
     options: List<String>? = null,
     onSelect: ((Int) -> Unit)? = null,
-    pickerRequestToken: Int = 0
+    pickerRequestToken: Int = 0,
+    onPickerVisibilityChange: ((Boolean) -> Unit)? = null
 ) {
     val valueColor = when {
         isFocused -> MaterialTheme.colorScheme.onPrimaryContainer
@@ -270,6 +272,12 @@ fun CyclePreference(
             }
         }
     }
+    if (pickerVisible && onPickerVisibilityChange != null) {
+        DisposableEffect(Unit) {
+            onPickerVisibilityChange(true)
+            onDispose { onPickerVisibilityChange(false) }
+        }
+    }
     if (options != null && onSelect != null) {
         EnumPickerModal(
             title = title,
@@ -314,7 +322,7 @@ fun SegmentedPreference(
 private const val INLINE_TRACK_MAX_SHARE = 0.6f
 
 @Composable
-private fun PreferenceResetButton(onReset: () -> Unit) {
+internal fun PreferenceResetButton(onReset: () -> Unit) {
     Box(
         modifier = Modifier
             .size(Dimens.iconMd)

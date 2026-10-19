@@ -30,6 +30,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -46,6 +47,7 @@ private const val TAG = "LockScreenArt"
 private const val MOSAIC_LOAD_BATCH = 8
 private const val LAUNCH_DRAW_BUDGET_MS = 2_000L
 private const val LAUNCH_RECOLOR_WAIT_MS = 600L
+internal const val PREVIEW_RETRY_MS = 2_000L
 
 @Singleton
 class LockScreenArtManager @Inject constructor(
@@ -67,6 +69,17 @@ class LockScreenArtManager @Inject constructor(
     companion object {
         internal fun mayDraw(gameId: Long?, shownKey: String?, isLaunch: Boolean): Boolean =
             isLaunch || gameId == null || shownKey?.startsWith("game:$gameId:") == true
+
+        internal suspend fun showWhenReady(
+            scenes: LockScreenScenes,
+            retryMs: Long,
+            build: suspend () -> LockScreenScene?
+        ) {
+            while (scenes.scene.value == null) {
+                build()?.let(scenes::show)
+                if (scenes.scene.value == null) delay(retryMs)
+            }
+        }
     }
 
     private val screenOffReceiver = object : BroadcastReceiver() {
@@ -233,11 +246,15 @@ class LockScreenArtManager @Inject constructor(
         libraryRefresh = scope.launch { refresh() }
     }
 
-    fun prepareLivePreview() {
-        if (scenes.scene.value != null) return
-        scope.launch {
-            val (width, height) = screenSize() ?: return@launch
-            scrollingScene(gameRepository.coversOnePerTitle().distinct(), width, height)?.let(scenes::show)
+    /**
+     * Builds the mosaic for the wallpaper picker's preview, retrying until the library has covers
+     * to draw. The caller cancels the returned job when its preview engine goes away.
+     */
+    fun prepareLivePreview(): Job = scope.launch {
+        showWhenReady(scenes, PREVIEW_RETRY_MS) {
+            screenSize()?.let { (width, height) ->
+                scrollingScene(gameRepository.coversOnePerTitle().distinct(), width, height)
+            }
         }
     }
 

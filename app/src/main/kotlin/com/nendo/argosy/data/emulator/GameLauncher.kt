@@ -16,6 +16,7 @@ import com.nendo.argosy.data.storage.StorageCategory
 import com.nendo.argosy.data.storage.StoragePathUtils
 import com.nendo.argosy.data.storage.StorageVolumeHealth
 import com.nendo.argosy.data.launcher.GameNativeLauncher
+import com.nendo.argosy.data.launcher.SteamInstallReports
 import com.nendo.argosy.data.launcher.SteamLaunchers
 import com.nendo.argosy.data.local.dao.EmulatorConfigDao
 import com.nendo.argosy.data.local.dao.EmulatorLaunchArgsDao
@@ -33,7 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import com.nendo.argosy.data.local.entity.GameDiscEntity
-import com.nendo.argosy.data.platform.platformRomRoots
+import com.nendo.argosy.data.platform.PlatformFolderResolver
 import com.nendo.argosy.data.local.entity.GameEntity
 import com.nendo.argosy.data.model.GameSource
 import com.nendo.argosy.data.model.VariantCategory
@@ -48,7 +49,7 @@ import javax.inject.Singleton
 
 private const val TAG = "GameLauncher"
 private val PACKAGE_NAME = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+$")
-private const val EXTRA_ALREADY_LAUNCHED = "argosy.already_launched"
+internal const val EXTRA_ALREADY_LAUNCHED = "argosy.already_launched"
 private val DISC_TAG_REGEX = Regex("\\(Disc \\d+\\)", RegexOption.IGNORE_CASE)
 private val DISC_NUMBER_REGEX = Regex("\\d+")
 
@@ -109,6 +110,7 @@ class GameLauncher @Inject constructor(
     private val biosRepository: BiosRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val coreOptionResolver: CoreOptionResolver,
+    private val builtinGraphicsResolver: BuiltinGraphicsResolver,
     private val coreSystemDataManager: CoreSystemDataManager,
     private val gameFileDao: GameFileDao,
     private val emulatorSaveConfigRepository: com.nendo.argosy.data.repository.EmulatorSaveConfigRepository,
@@ -121,9 +123,11 @@ class GameLauncher @Inject constructor(
     private val accountSwitchMarkerStore: com.nendo.argosy.data.preferences.AccountSwitchMarkerStore,
     private val extContentOrganizer: com.nendo.argosy.data.download.ExtContentOrganizer,
     private val baseRomFileResolver: BaseRomFileResolver,
+    private val platformFolderResolver: PlatformFolderResolver,
     private val dreamcastVmuMigrator: DreamcastVmuMigrator,
     private val volumeHealth: StorageVolumeHealth,
-    private val launchProgressTracker: LaunchProgressTracker
+    private val launchProgressTracker: LaunchProgressTracker,
+    private val steamInstallReports: SteamInstallReports
 ) {
     private val shellAmAvailable: Boolean by lazy {
         try {
@@ -621,7 +625,24 @@ class GameLauncher @Inject constructor(
                 Logger.warn(TAG, "launchSteamGame() failed: missing steamAppId")
             }
 
-        val chosenPackage = game.steamLauncher?.takeIf { it != GameEntity.LAUNCHER_UNSPECIFIED }
+        val storedPackage = game.steamLauncher?.takeIf { it != GameEntity.LAUNCHER_UNSPECIFIED }
+        val pinned = game.launcherSetManually && storedPackage != null
+        val choices = SteamLaunchers.launchChoices(
+            pinned = pinned,
+            reporting = if (pinned) emptyList() else steamInstallReports.launchersReporting(steamAppId),
+            isInstalled = { pkg -> SteamLaunchers.getByPackage(pkg)?.isInstalled(context) == true }
+        )
+        val ticket = launchProgressTracker.current
+        val promptedPackage = if (choices.isNotEmpty() && ticket != null) {
+            val answer = ticket.chooseLauncher(choices.mapNotNull(SteamLaunchers::promptOptionFor))
+                ?: return LaunchResult.Cancelled.also {
+                    Logger.info(TAG, "launchSteamGame(): launcher choice cancelled for appId=$steamAppId")
+                }
+            SteamLaunchers.forPromptOption(answer)?.packageName
+        } else {
+            null
+        }
+        val chosenPackage = promptedPackage ?: storedPackage
 
         val launcher = if (chosenPackage != null) {
             SteamLaunchers.getByPackage(chosenPackage) ?: GameNativeLauncher
@@ -708,13 +729,29 @@ class GameLauncher @Inject constructor(
             return null
         }
 
-        val coreVariables = coreOptionResolver.resolveVariables(
+        val resolvedVariables = coreOptionResolver.resolveVariables(
             coreName,
             gameId = game.id.takeIf { game.perGameSettingsEnabled }
         )
 
-        Logger.info(TAG, "[BuiltIn] Launching: rom=${romFile.name}, core=$coreName, romSize=${romFile.length()}b, coreVars=${coreVariables.size}")
+        Logger.info(TAG, "[BuiltIn] Launching: rom=${romFile.name}, core=$coreName, romSize=${romFile.length()}b, coreVars=${resolvedVariables.size}")
         val builtinSettings = userPreferencesRepository.getBuiltinEmulatorSettings().first()
+        val graphics = builtinGraphicsResolver.resolve(
+            gameId = game.id,
+            platformId = game.platformId,
+            coreId = coreName,
+            resolvedVariables = resolvedVariables.toList(),
+            globalDriver = builtinSettings.gpuDriver
+        )
+        val coreVariables = graphics.coreVariables
+        val vulkanDriver = graphics.driver.takeIf { graphics.preferVulkan }
+        Logger.info(TAG, buildString {
+            append("[BuiltIn] Graphics: backend=${graphics.backendValue}, preferVulkan=${graphics.preferVulkan}")
+            if (graphics.preferVulkan) {
+                append(", driver=${vulkanDriver?.id ?: GpuDriverToken.SYSTEM}")
+                if (graphics.choice.fellBackToSystem) append(" (requested ${graphics.choice.requested})")
+            }
+        })
         val platformLibretroOverride = platformLibretroSettingsDao.getByPlatformId(game.platformId)
         val effectiveSavePath = builtinSaveBase.forGame(game, romFile.absolutePath)
         val effectiveStatePath = libretroStatePathResolver
@@ -741,6 +778,11 @@ class GameLauncher @Inject constructor(
             putExtra(LibretroActivity.EXTRA_CORE_NAME, coreName)
             putExtra(LibretroActivity.EXTRA_CORE_VAR_KEYS, coreVariables.map { it.key }.toTypedArray())
             putExtra(LibretroActivity.EXTRA_CORE_VAR_VALUES, coreVariables.map { it.value }.toTypedArray())
+            putExtra(LibretroActivity.EXTRA_PREFER_VULKAN, graphics.preferVulkan)
+            vulkanDriver?.let {
+                putExtra(LibretroActivity.EXTRA_VULKAN_DRIVER_DIR, it.directory.absolutePath)
+                putExtra(LibretroActivity.EXTRA_VULKAN_DRIVER_LIBRARY, it.libraryName)
+            }
             effectiveSavePath?.let { putExtra(LibretroActivity.EXTRA_SAVES_DIR, it) }
             putExtra(LibretroActivity.EXTRA_STATES_DIR, effectiveStatePath)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -809,6 +851,7 @@ class GameLauncher @Inject constructor(
 
     private suspend fun ps2MemcardGate(gameId: Long, game: GameEntity, emulator: EmulatorDef): LaunchResult? {
         if (game.platformSlug != "ps2") return null
+        if (emulator.launchConfig.isInProcess) return null
         if (emulatorConfigDao.getSelectedMemcardForGame(gameId) != null) return null
         val emulatorId = savePathAuthority.configIdFor(
             SavePathRequest(
@@ -853,11 +896,15 @@ class GameLauncher @Inject constructor(
 
     private suspend fun biosGate(game: GameEntity, emulator: EmulatorDef): LaunchResult? {
         if (!emulator.launchConfig.isInProcess) return null
-        val requirements = mandatoryBios[game.platformSlug.lowercase()] ?: return null
+        val requirements = mandatoryBios[game.platformSlug.lowercase()]
+        val biosDir = BiosPathRegistry.getBuiltinPlatformBiosDir(game.platformSlug)
+        if (requirements == null && biosDir == null) return null
         return try {
             biosRepository.distributeBiosToEmulator(game.platformSlug, EmulatorRegistry.BUILTIN_PACKAGE)
             val systemDir = biosRepository.getLibretroSystemDir()
-            val unmet = requirements.any { group -> group.none { File(systemDir, it).exists() } }
+            val unmetFiles = requirements.orEmpty().any { group -> group.none { File(systemDir, it).exists() } }
+            val unmetDir = biosDir != null && File(systemDir, biosDir).listFiles()?.any { it.isFile } != true
+            val unmet = unmetFiles || unmetDir
             if (unmet) {
                 Logger.warn(TAG, "[Launch] BIOS gate: ${game.platformSlug} missing required firmware")
                 LaunchResult.MissingBios(game.platformSlug)
@@ -1952,19 +1999,6 @@ class GameLauncher @Inject constructor(
         }
     }
 
-    /**
-     * Mirrors the download-side resolver: a custom folder is only trusted when the slug
-     * identifies exactly one platform, so this and the writer cannot disagree about where a
-     * platform's roms live.
-     */
-    private suspend fun platformDownloadDir(platformSlug: String): File {
-        platformDao.getAllBySlug(platformSlug).singleOrNull()?.customRomPath?.let { return File(it) }
-        val custom = userPreferencesRepository.userPreferences.first().romStoragePath
-        return if (custom != null) File(custom, platformSlug)
-        else File(File(context.getExternalFilesDir(null), "downloads"), platformSlug)
-    }
-
-
     private suspend fun validateAndResolveLaunchFile(game: GameEntity, romFile: File): File {
         if (romFile.extension.lowercase() != "m3u") return romFile
 
@@ -2179,7 +2213,7 @@ class GameLauncher @Inject constructor(
      */
     private suspend fun consolidateExtContent(game: GameEntity, emulator: EmulatorDef): File? {
         if (!extContentOrganizer.isExtcontentEmulator(emulator.id, game.platformSlug)) return null
-        val platformDir = platformDownloadDir(game.platformSlug)
+        val platformDir = platformFolderResolver.downloadDirForPlatform(game.platformId, game.platformSlug)
         if (extContentOrganizer.usesCombinedLayout(game.platformId, game.platformSlug)) {
             extContentOrganizer.enforceCombinedLayout(game, platformDir)?.let { return it }
         }

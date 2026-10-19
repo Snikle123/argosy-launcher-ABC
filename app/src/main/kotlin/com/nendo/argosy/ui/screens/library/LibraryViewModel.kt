@@ -242,6 +242,7 @@ data class LibraryGameUi(
     val isFavorite: Boolean,
     val isDownloaded: Boolean,
     val isRommGame: Boolean,
+    val canRemoveFromLibrary: Boolean = false,
     val isAndroidApp: Boolean,
     val emulatorName: String?,
     val needsInstall: Boolean = false,
@@ -449,7 +450,7 @@ private const val MIN_SECTION_RAIL_LABELS = 3
 private const val FILTER_OPTION_PAGE = 5
 
 sealed class LibraryEvent {
-    data class LaunchIntent(val intent: Intent, val options: android.os.Bundle? = null) : LibraryEvent()
+    data class LaunchIntent(val intent: Intent) : LibraryEvent()
 }
 
 @HiltViewModel
@@ -458,7 +459,7 @@ class LibraryViewModel @Inject constructor(
     private val platformRepository: PlatformRepository,
     private val gameRepository: GameRepository,
     private val mediaRepository: MediaRepository,
-    private val emulatorLaunchTargetResolver: com.nendo.argosy.ui.screens.common.EmulatorLaunchTargetResolver,
+    private val gameStartRouter: com.nendo.argosy.ui.screens.common.GameStartRouter,
     private val collectionRepository: CollectionRepository,
     private val gameNavigationContext: GameNavigationContext,
     private val notificationManager: NotificationManager,
@@ -2031,10 +2032,30 @@ class LibraryViewModel @Inject constructor(
                 toggleQuickMenu()
                 InputResult.HANDLED
             }
+            LibraryQuickMenuRow.REMOVE_FROM_LIBRARY -> {
+                toggleQuickMenu()
+                removeFromLibrary(game.id)
+                InputResult.HANDLED
+            }
             LibraryQuickMenuRow.HIDE -> {
                 if (game.isHidden) unhideGame(game.id) else hideGame(game.id)
                 toggleQuickMenu()
                 InputResult.HANDLED
+            }
+        }
+    }
+
+    fun removeFromLibrary(gameId: Long) {
+        viewModelScope.launch {
+            if (gameActions.removeFromLibrary(gameId)) {
+                notificationManager.showSuccess(
+                    NotificationText.Res(R.string.library_notice_removed_from_library)
+                )
+                loadGames()
+            } else {
+                notificationManager.showError(
+                    NotificationText.Res(R.string.library_notice_remove_failed)
+                )
             }
         }
     }
@@ -2127,12 +2148,7 @@ class LibraryViewModel @Inject constructor(
             scope = viewModelScope,
             gameId = gameId,
             channelName = channelName,
-            onLaunch = { intent ->
-                viewModelScope.launch {
-                    val options = emulatorLaunchTargetResolver.launchOptionsFor(gameId)
-                    _events.emit(LibraryEvent.LaunchIntent(intent, options))
-                }
-            }
+            onLaunch = { intent -> gameStartRouter.start(gameId, intent) }
         )
     }
 
@@ -2529,6 +2545,10 @@ class LibraryViewModel @Inject constructor(
 
         override fun onNextTrigger(): InputResult = trigger(1)
 
+        override fun onRightStickUp(): InputResult = sectionJump(-1)
+
+        override fun onRightStickDown(): InputResult = sectionJump(1)
+
         private fun bumper(direction: Int): InputResult {
             val state = _uiState.value
             return when {
@@ -2542,6 +2562,10 @@ class LibraryViewModel @Inject constructor(
 
         private fun trigger(direction: Int): InputResult {
             if (quickNavigation.enabled.value) return switchPlatform(direction)
+            return sectionJump(direction)
+        }
+
+        private fun sectionJump(direction: Int): InputResult {
             val state = _uiState.value
             if (state.hasInternalFocus || isLiftingPlatform) return InputResult.HANDLED
             if (state.sectionLabels.isEmpty()) return InputResult.UNHANDLED

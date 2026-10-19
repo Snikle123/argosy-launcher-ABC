@@ -1,9 +1,7 @@
 package com.nendo.argosy.ui
 
 import android.app.Application
-import android.content.Context
 import android.database.ContentObserver
-import android.hardware.input.InputManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -33,7 +31,6 @@ import com.nendo.argosy.core.notification.NotificationType
 import com.nendo.argosy.data.emulator.EmulatorUpdateManager
 import com.nendo.argosy.data.emulator.PlaySessionTracker
 import com.nendo.argosy.data.preferences.MenuWrapMode
-import com.nendo.argosy.ui.screens.common.GameLaunchRequest
 import com.nendo.argosy.data.preferences.UserPreferences
 import com.nendo.argosy.data.preferences.UserPreferencesRepository
 import com.nendo.argosy.data.remote.romm.ConnectionState
@@ -46,7 +43,6 @@ import com.nendo.argosy.ui.components.QuickSettingsController
 import com.nendo.argosy.ui.components.friends.QuickFriendsController
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.data.repository.GameRepository
-import com.nendo.argosy.core.input.ControllerDetector
 import com.nendo.argosy.ui.input.InputDispatcher.Companion.computeWrappedIndex
 import com.nendo.argosy.ui.input.GamepadInputHandler
 import com.nendo.argosy.ui.input.HapticFeedbackManager
@@ -55,6 +51,7 @@ import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.buttonGlyphSwaps
 import com.nendo.argosy.ui.input.SoundFeedbackManager
 import com.nendo.argosy.core.input.SoundType
+import com.nendo.argosy.ui.navigation.NavBarVisibility
 import com.nendo.argosy.ui.navigation.NavRing
 import com.nendo.argosy.ui.navigation.Screen
 import com.nendo.argosy.core.notification.DownloadNotificationObserver
@@ -69,11 +66,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -140,11 +136,11 @@ data class DrawerItem(
 data class NavRingState(
     val destinations: List<DrawerItem> = emptyList(),
     val pages: List<DrawerItem> = emptyList(),
-    val homeAppBarConfigured: Boolean = false,
-    val isBarVisible: Boolean = false
-)
-
-private const val NAV_BAR_AUTO_HIDE_MS = 5_000L
+    val isBarVisible: Boolean = false,
+    val isAlwaysVisible: Boolean = false
+) {
+    val footerYieldsToBar: Boolean get() = isBarVisible && !isAlwaysVisible
+}
 
 private fun isNavRouteAvailable(route: String, socialConnected: Boolean, mediaSignedIn: Boolean): Boolean =
     when (route) {
@@ -193,8 +189,8 @@ class ArgosyViewModel @Inject constructor(
     private val pendingConflictDao: com.nendo.argosy.data.local.dao.PendingConflictDao,
     val saveConflicts: com.nendo.argosy.ui.conflict.SaveConflictPrompts,
     private val deepLinkLaunchCoordinator: com.nendo.argosy.ui.deeplink.DeepLinkLaunchCoordinator,
-    private val emulatorLaunchTargetResolver:
-        com.nendo.argosy.ui.screens.common.EmulatorLaunchTargetResolver
+    private val gameStartRouter: com.nendo.argosy.ui.screens.common.GameStartRouter,
+    private val connectedControllerTracker: com.nendo.argosy.core.input.ConnectedControllerTracker
 ) : ViewModel() {
 
     suspend fun resolveDeepLinkLaunch(
@@ -206,7 +202,6 @@ class ArgosyViewModel @Inject constructor(
     val netplayJoinState: StateFlow<com.nendo.argosy.data.netplay.NetplayJoinState> get() = netplayJoinService.state
 
     fun cancelNetplayJoin() = netplayJoinService.cancel()
-    fun resetNetplayJoin() = netplayJoinService.reset()
     fun netplayJoinService(): com.nendo.argosy.data.netplay.NetplayJoinService = netplayJoinService
 
     private val contentResolver get() = application.contentResolver
@@ -220,15 +215,6 @@ class ArgosyViewModel @Inject constructor(
         }
     }
 
-    private val _detectedLayout = MutableStateFlow(ControllerDetector.detectFromActiveGamepad().layout)
-
-    private val inputManager = application.getSystemService(Context.INPUT_SERVICE) as InputManager
-    private val inputDeviceListener = object : InputManager.InputDeviceListener {
-        override fun onInputDeviceAdded(deviceId: Int) = refreshControllerDetection()
-        override fun onInputDeviceChanged(deviceId: Int) = refreshControllerDetection()
-        override fun onInputDeviceRemoved(deviceId: Int) = refreshControllerDetection()
-    }
-
 
     init {
         downloadNotificationObserver.observe(viewModelScope)
@@ -236,18 +222,17 @@ class ArgosyViewModel @Inject constructor(
         launcherStartup.start()
         observeFeedbackSettings(preferencesRepository)
         downloadManager.clearCompleted()
-        initControllerDetection()
         saveConflicts.start(viewModelScope)
         observeConnectionForSync()
         observeSocialConnectionForSync()
         observeNetplayInvites()
+        observeNetplayJoinLaunch()
         registerSettingsObserver()
     }
 
     override fun onCleared() {
         super.onCleared()
         application.contentResolver.unregisterContentObserver(settingsObserver)
-        inputManager.unregisterInputDeviceListener(inputDeviceListener)
     }
 
     private fun registerSettingsObserver() {
@@ -284,22 +269,7 @@ class ArgosyViewModel @Inject constructor(
         }
     }
 
-    private fun initControllerDetection() {
-        // One-time detection at startup
-        refreshControllerDetection()
-        // Register listener for device changes (connect/disconnect/mode change)
-        inputManager.registerInputDeviceListener(inputDeviceListener, null)
-    }
-
-    fun refreshControllerDetection() {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            val result = ControllerDetector.detectFromActiveGamepad()
-            if (_detectedLayout.value != result.layout) {
-                Log.d("ArgosyVM", "Layout changed: ${_detectedLayout.value} -> ${result.layout} (${result.source})")
-                _detectedLayout.value = result.layout
-            }
-        }
-    }
+    fun refreshControllerDetection() = connectedControllerTracker.refresh()
 
     fun triggerPostWizardSync() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
@@ -335,7 +305,7 @@ class ArgosyViewModel @Inject constructor(
 
     val uiState: StateFlow<ArgosyUiState> = combine(
         preferencesRepository.userPreferences,
-        _detectedLayout,
+        connectedControllerTracker.activeLayout,
         launcherStartup.complete,
         launcherStartup.status
     ) { prefs, detectedLayout, startupDone, status ->
@@ -442,15 +412,14 @@ class ArgosyViewModel @Inject constructor(
             return allDrawerItems.filter { isNavRouteAvailable(it.route, socialConnected, _isMediaSignedIn) }
         }
 
-    private val _navBarVisible = MutableStateFlow(false)
-    private var navBarHideJob: kotlinx.coroutines.Job? = null
+    private val navBarVisibility = NavBarVisibility(viewModelScope)
 
     val navRingState: StateFlow<NavRingState> = combine(
         socialRepository.connectionState,
         preferencesRepository.userPreferences,
         quickNavigationSource.enabled,
-        _navBarVisible
-    ) { social, prefs, quickNavigation, barVisible ->
+        navBarVisibility.raised
+    ) { social, prefs, quickNavigation, raised ->
         val socialConnected = social is SocialConnectionState.Connected
         val pages = allDrawerItems.filter {
             isNavRouteAvailable(it.route, socialConnected, prefs.isJellyfinSignedIn)
@@ -465,8 +434,8 @@ class ArgosyViewModel @Inject constructor(
         NavRingState(
             destinations = ring,
             pages = pages,
-            homeAppBarConfigured = prefs.secondaryHomeApps.isNotEmpty(),
-            isBarVisible = barVisible
+            isBarVisible = NavBarVisibility.isVisible(quickNavigation, prefs.navBarAutoHide, raised),
+            isAlwaysVisible = NavBarVisibility.isAlwaysVisible(quickNavigation, prefs.navBarAutoHide)
         )
     }.stateIn(
         scope = viewModelScope,
@@ -483,20 +452,12 @@ class ArgosyViewModel @Inject constructor(
     }
 
     fun showNavBar() {
-        if (navRingState.value.destinations.isEmpty()) return
-        navBarHideJob?.cancel()
-        _navBarVisible.update { true }
-        navBarHideJob = viewModelScope.launch {
-            delay(NAV_BAR_AUTO_HIDE_MS)
-            _navBarVisible.update { false }
-        }
+        val state = navRingState.value
+        if (state.destinations.isEmpty()) return
+        navBarVisibility.show(autoHide = !state.isAlwaysVisible)
     }
 
-    fun hideNavBar() {
-        navBarHideJob?.cancel()
-        navBarHideJob = null
-        _navBarVisible.update { false }
-    }
+    fun hideNavBar() = navBarVisibility.hide()
 
     private val _isDrawerOpen = MutableStateFlow(false)
     val isDrawerOpen: StateFlow<Boolean> = _isDrawerOpen.asStateFlow()
@@ -574,6 +535,11 @@ class ArgosyViewModel @Inject constructor(
             return InputResult.handled(SoundType.CLOSE_MODAL)
         }
 
+        override fun onRight(): InputResult {
+            onDismiss()
+            return InputResult.handled(SoundType.CLOSE_MODAL)
+        }
+
         override fun onMenu(): InputResult {
             onDismiss()
             return InputResult.handled(SoundType.CLOSE_MODAL)
@@ -610,21 +576,25 @@ class ArgosyViewModel @Inject constructor(
     private val _netplayInviteFocusIndex = MutableStateFlow(0)
     val netplayInviteFocusIndex: StateFlow<Int> = _netplayInviteFocusIndex.asStateFlow()
 
-    private val _netplayInviteLaunch =
-        kotlinx.coroutines.flow.MutableSharedFlow<GameLaunchRequest>(extraBufferCapacity = 4)
-    val netplayInviteLaunch: kotlinx.coroutines.flow.SharedFlow<GameLaunchRequest> = _netplayInviteLaunch
-
     private val _coreCrashLaunch =
         kotlinx.coroutines.flow.MutableSharedFlow<Long>(extraBufferCapacity = 1)
     val coreCrashLaunch: kotlinx.coroutines.flow.SharedFlow<Long> = _coreCrashLaunch
-
-    suspend fun launchOptionsFor(gameId: Long): android.os.Bundle? =
-        emulatorLaunchTargetResolver.launchOptionsFor(gameId)
 
     fun launchFromCoreCrash() {
         val gameId = coreCrashController.prompt.value?.gameId ?: return
         coreCrashController.dismiss()
         _coreCrashLaunch.tryEmit(gameId)
+    }
+
+    private fun observeNetplayJoinLaunch() {
+        viewModelScope.launch {
+            netplayJoinService.state
+                .filterIsInstance<com.nendo.argosy.data.netplay.NetplayJoinState.LaunchReady>()
+                .collect { ready ->
+                    gameStartRouter.start(ready.gameId, ready.intent)
+                    netplayJoinService.reset()
+                }
+        }
     }
 
     private fun observeNetplayInvites() {
@@ -702,9 +672,7 @@ class ArgosyViewModel @Inject constructor(
                             putExtra(LibretroActivity.EXTRA_CORE_PATH, preflight.resolvedCorePath)
                         }
                     }
-                    _netplayInviteLaunch.tryEmit(
-                        GameLaunchRequest(decorated, emulatorLaunchTargetResolver.launchOptionsFor(gameId))
-                    )
+                    gameStartRouter.start(gameId, decorated)
                 }
                 is LaunchResult.Error -> {
                     notificationManager.show(
@@ -803,9 +771,7 @@ class ArgosyViewModel @Inject constructor(
                             putExtra(LibretroActivity.EXTRA_CORE_PATH, preflight.resolvedCorePath)
                         }
                     }
-                    _netplayInviteLaunch.tryEmit(
-                        GameLaunchRequest(decorated, emulatorLaunchTargetResolver.launchOptionsFor(game.id))
-                    )
+                    gameStartRouter.start(game.id, decorated)
                 }
                 is LaunchResult.Error -> {
                     notificationManager.show(

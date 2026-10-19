@@ -15,6 +15,7 @@ import com.nendo.argosy.domain.model.ScreenLayouts
 import com.nendo.argosy.ui.theme.generated.ComponentDefaults
 import com.nendo.argosy.util.DisplayAffinityHelper
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -74,9 +75,14 @@ data class DisplayPreferences(
         com.nendo.argosy.domain.model.HomeLayoutSettings(),
     val presentationStyle: com.nendo.argosy.domain.model.PresentationStyle =
         com.nendo.argosy.domain.model.PresentationStyle(),
+    val presentationBackgroundBlur: Int = 0,
     val useAccentColorFooter: Boolean = false,
     val compactFooter: Boolean = false,
+    val hideSystemNavigationBar: Boolean = true,
+    val hideSystemStatusBar: Boolean = true,
     val lockScreenArt: Boolean = true,
+    val homeAppAvailable: Boolean = true,
+    val iconPack: String? = null,
     val boxArtShape: BoxArtShape = BoxArtShape.STANDARD,
     val boxArtCornerRadius: BoxArtCornerRadius = BoxArtCornerRadius.MEDIUM,
     val boxArtBorderThickness: BoxArtBorderThickness = BoxArtBorderThickness.MEDIUM,
@@ -114,6 +120,8 @@ data class DisplayPreferences(
     val screenDimmerLevel: Int = 50,
     val dualScreenEnabled: Boolean = false,
     val displayRoleOverride: DisplayRoleOverride = DisplayRoleOverride.AUTO,
+    val gamesDisplayTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.PRESENTATION,
+    val appsDisplayTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.DEFAULT,
     val dualScreenInputFocus: DualScreenInputFocus = DualScreenInputFocus.AUTO,
     val screenLayouts: ScreenLayouts = ScreenLayouts(),
     val installedOnlyHome: Boolean = false
@@ -173,11 +181,17 @@ class DisplayPreferencesRepository @Inject constructor(
         val HOME_BACKGROUND_MODE = stringPreferencesKey("home_background_mode")
         val HOME_LAYOUT_CONFIG = stringPreferencesKey("home_layout_config")
         val PRESENTATION_STYLE = stringPreferencesKey("presentation_style")
+        val PRESENTATION_BACKGROUND_BLUR = intPreferencesKey("presentation_background_blur")
         val USE_ACCENT_COLOR_FOOTER = booleanPreferencesKey("use_accent_color_footer")
         val COMPACT_FOOTER = booleanPreferencesKey("compact_footer")
+        val HIDE_SYSTEM_NAVIGATION_BAR = booleanPreferencesKey("hide_system_navigation_bar")
+        val HIDE_SYSTEM_STATUS_BAR = booleanPreferencesKey("hide_system_status_bar")
         val LOCK_SCREEN_ART = booleanPreferencesKey("lock_screen_art")
         val LOCK_SCREEN_ART_APPLIED = booleanPreferencesKey("lock_screen_art_applied")
         val LIVE_WALLPAPER_OFFERED = booleanPreferencesKey("live_wallpaper_offered")
+        val HOME_APP_AVAILABLE = booleanPreferencesKey("home_app_available")
+        val HOME_APP_DEFAULT_APPLIED = booleanPreferencesKey("home_app_default_applied")
+        val ICON_PACK = stringPreferencesKey("icon_pack")
         val GRIP_AUTO_CONTROLLERS = stringPreferencesKey("grip_auto_controllers")
         val GRIP_RESERVE_MODE = stringPreferencesKey("grip_reserve_mode")
         val BOX_ART_SHAPE = stringPreferencesKey("box_art_shape")
@@ -217,6 +231,8 @@ class DisplayPreferencesRepository @Inject constructor(
         val SCREEN_DIMMER_LEVEL = intPreferencesKey("screen_dimmer_level")
         val DUAL_SCREEN_ENABLED = booleanPreferencesKey("dual_screen_enabled")
         val DISPLAY_ROLE_OVERRIDE = stringPreferencesKey("display_role_override")
+        val GAMES_DISPLAY_TARGET = stringPreferencesKey("games_display_target")
+        val APPS_DISPLAY_TARGET = stringPreferencesKey("apps_display_target")
         val DUAL_SCREEN_INPUT_FOCUS = stringPreferencesKey("dual_screen_input_focus")
         val SCREEN_LAYOUTS = stringPreferencesKey("screen_layouts")
         val INSTALLED_ONLY_HOME = booleanPreferencesKey("installed_only_home")
@@ -279,9 +295,14 @@ class DisplayPreferencesRepository @Inject constructor(
             presentationStyle = com.nendo.argosy.domain.model.PresentationStyle.fromJson(
                 prefs[Keys.PRESENTATION_STYLE]
             ),
+            presentationBackgroundBlur = prefs[Keys.PRESENTATION_BACKGROUND_BLUR] ?: 0,
             useAccentColorFooter = prefs[Keys.USE_ACCENT_COLOR_FOOTER] ?: false,
             compactFooter = prefs[Keys.COMPACT_FOOTER] ?: false,
+            hideSystemNavigationBar = prefs[Keys.HIDE_SYSTEM_NAVIGATION_BAR] ?: true,
+            hideSystemStatusBar = prefs[Keys.HIDE_SYSTEM_STATUS_BAR] ?: true,
             lockScreenArt = prefs[Keys.LOCK_SCREEN_ART] ?: true,
+            homeAppAvailable = prefs[Keys.HOME_APP_AVAILABLE] ?: true,
+            iconPack = prefs[Keys.ICON_PACK],
             boxArtShape = BoxArtShape.fromString(prefs[Keys.BOX_ART_SHAPE]),
             boxArtCornerRadius = BoxArtCornerRadius.fromString(prefs[Keys.BOX_ART_CORNER_RADIUS]),
             boxArtBorderThickness = BoxArtBorderThickness.fromString(prefs[Keys.BOX_ART_BORDER_THICKNESS]),
@@ -324,11 +345,17 @@ class DisplayPreferencesRepository @Inject constructor(
             screenDimmerLevel = prefs[Keys.SCREEN_DIMMER_LEVEL] ?: 50,
             dualScreenEnabled = prefs[Keys.DUAL_SCREEN_ENABLED] ?: DisplayAffinityHelper.isKnownDualScreenDevice(),
             displayRoleOverride = DisplayRoleOverride.fromString(prefs[Keys.DISPLAY_ROLE_OVERRIDE]),
+            gamesDisplayTarget = EmulatorDisplayTarget.gamesDefaultFrom(prefs[Keys.GAMES_DISPLAY_TARGET]),
+            appsDisplayTarget = EmulatorDisplayTarget.appsDefaultFrom(prefs[Keys.APPS_DISPLAY_TARGET]),
             dualScreenInputFocus = DualScreenInputFocus.fromString(prefs[Keys.DUAL_SCREEN_INPUT_FOCUS]),
             screenLayouts = ScreenLayouts.fromJson(prefs[Keys.SCREEN_LAYOUTS]),
             installedOnlyHome = prefs[Keys.INSTALLED_ONLY_HOME] ?: false
         )
     }
+
+    val iconPack: Flow<String?> = dataStore.data
+        .map { it[Keys.ICON_PACK] }
+        .distinctUntilChanged()
 
     suspend fun setThemeMode(mode: ThemeMode) {
         dataStore.edit { it[Keys.THEME_MODE] = mode.name }
@@ -565,6 +592,10 @@ class DisplayPreferencesRepository @Inject constructor(
         dataStore.edit { it[Keys.PRESENTATION_STYLE] = style.toJson() }
     }
 
+    suspend fun setPresentationBackgroundBlur(blur: Int) {
+        dataStore.edit { it[Keys.PRESENTATION_BACKGROUND_BLUR] = blur.coerceIn(0, 100) }
+    }
+
     suspend fun setUseAccentColorFooter(use: Boolean) {
         dataStore.edit { it[Keys.USE_ACCENT_COLOR_FOOTER] = use }
     }
@@ -573,8 +604,23 @@ class DisplayPreferencesRepository @Inject constructor(
         dataStore.edit { it[Keys.COMPACT_FOOTER] = enabled }
     }
 
+    suspend fun setHideSystemNavigationBar(hide: Boolean) {
+        dataStore.edit { it[Keys.HIDE_SYSTEM_NAVIGATION_BAR] = hide }
+    }
+
+    suspend fun setHideSystemStatusBar(hide: Boolean) {
+        dataStore.edit { it[Keys.HIDE_SYSTEM_STATUS_BAR] = hide }
+    }
+
     suspend fun setLockScreenArt(enabled: Boolean) {
         dataStore.edit { it[Keys.LOCK_SCREEN_ART] = enabled }
+    }
+
+    suspend fun setIconPack(packageName: String?) {
+        dataStore.edit { prefs ->
+            if (packageName != null) prefs[Keys.ICON_PACK] = packageName
+            else prefs.remove(Keys.ICON_PACK)
+        }
     }
 
     suspend fun isLockScreenArtApplied(): Boolean =
@@ -590,6 +636,16 @@ class DisplayPreferencesRepository @Inject constructor(
     suspend fun setLiveWallpaperOffered() {
         dataStore.edit { it[Keys.LIVE_WALLPAPER_OFFERED] = true }
     }
+
+    suspend fun setHomeAppAvailable(available: Boolean) {
+        dataStore.edit {
+            it[Keys.HOME_APP_AVAILABLE] = available
+            it[Keys.HOME_APP_DEFAULT_APPLIED] = true
+        }
+    }
+
+    suspend fun isHomeAppDefaultApplied(): Boolean =
+        dataStore.data.first()[Keys.HOME_APP_DEFAULT_APPLIED] ?: false
 
     suspend fun setGripAutoControllers(
         controllers: com.nendo.argosy.domain.model.GripAutoControllers
@@ -747,6 +803,17 @@ class DisplayPreferencesRepository @Inject constructor(
 
     suspend fun setDisplayRoleOverride(override: DisplayRoleOverride) {
         dataStore.edit { it[Keys.DISPLAY_ROLE_OVERRIDE] = override.name }
+    }
+
+    suspend fun setGamesDisplayTarget(target: EmulatorDisplayTarget) {
+        dataStore.edit { it[Keys.GAMES_DISPLAY_TARGET] = EmulatorDisplayTarget.gamesDefaultFrom(target.name).name }
+    }
+
+    suspend fun setAppsDisplayTarget(target: EmulatorDisplayTarget) {
+        dataStore.edit { prefs ->
+            if (target == EmulatorDisplayTarget.DEFAULT) prefs.remove(Keys.APPS_DISPLAY_TARGET)
+            else prefs[Keys.APPS_DISPLAY_TARGET] = target.name
+        }
     }
 
     suspend fun setDualScreenInputFocus(focus: DualScreenInputFocus) {

@@ -95,14 +95,26 @@
     <string name="settings_theme_backdrop_subtitle_off">关闭</string>
     <string name="settings_theme_fonts_title">字体</string>
     <string name="settings_theme_fonts_subtitle_default">默认</string>
+    <string name="settings_theme_icon_pack_title">图标包</string>
+    <string name="settings_theme_icon_pack_subtitle">使用已安装的图标包替换应用图标</string>
+    <string name="settings_theme_icon_pack_subtitle_none">未安装图标包</string>
+    <string name="settings_theme_icon_pack_system">系统图标</string>
 
     <!-- ===== Interface section ===== -->
 
     <string name="settings_interface_ui_scale_title">界面缩放</string>
     <string name="settings_interface_compact_footer_title">紧凑底栏</string>
     <string name="settings_interface_compact_footer_subtitle">使用更薄的操作提示栏</string>
+    <string name="settings_interface_hide_system_nav_bar_title">隐藏系统导航栏</string>
+    <string name="settings_interface_hide_system_nav_bar_subtitle">隐藏 Android 的返回、主屏幕和最近任务按钮或手势条。从边缘滑动即可显示</string>
+    <string name="settings_interface_hide_system_status_bar_title">隐藏系统状态栏</string>
+    <string name="settings_interface_hide_system_status_bar_subtitle">隐藏 Android 状态栏和通知图标。从顶部向下滑动即可显示</string>
     <string name="settings_interface_lock_screen_art_title">锁屏图片</string>
     <string name="settings_interface_lock_screen_art_subtitle">当 Argosy 是你的主屏幕应用时，锁屏会显示你的游戏库或未退出的游戏。会永久替换你的锁屏壁纸。</string>
+    <string name="settings_interface_home_app_title">可用作主屏幕应用</string>
+    <string name="settings_interface_home_app_subtitle">让 Android 可以将 Argosy 作为主屏幕提供。仅在关闭此项时，Samsung DeX 才能打开 Argosy。</string>
+    <string name="settings_interface_home_app_locked_value">开启</string>
+    <string name="settings_interface_home_app_locked_subtitle">Argosy 是你的主屏幕应用。请先在 Android 设置中选择其他主屏幕应用，再关闭此项。</string>
     <string name="settings_interface_controller_grip_title">手柄夹持</string>
     <string name="settings_interface_controller_grip_subtitle">将界面上移，避开夹持配件遮挡的区域</string>
     <string name="settings_interface_home_screen_title">主屏幕</string>
@@ -122,6 +134,8 @@
     <string name="settings_navigation_nav_bar_pages_subtitle">选择并排列导航栏和肩键切换的页面</string>
     <string name="settings_navigation_quick_navigation_title">快速导航</string>
     <string name="settings_navigation_quick_navigation_subtitle">肩键通过导航栏切换页面。关闭时，肩键切换平台和标签页，扳机键在字母之间跳转</string>
+    <string name="settings_navigation_nav_bar_auto_hide_title">自动隐藏导航栏</string>
+    <string name="settings_navigation_nav_bar_auto_hide_subtitle">导航栏在几秒后隐藏，由按键提示取代其位置。关闭时，导航栏始终显示</string>
     <string name="settings_navigation_nav_bar_pages_count">%1$d / %2$d</string>
     <string name="settings_nav_ring_modal_title">导航栏页面</string>
     <string name="settings_nav_ring_modal_subtitle">开启或关闭页面并设置顺序</string>
@@ -236,11 +250,44 @@
 
     <string name="settings_displays_screens_title">屏幕布局</string>
     <string name="settings_displays_screens_subtitle">为每块已连接的屏幕分配用途</string>
+    <string name="settings_displays_section_display_targets">目标显示屏</string>
+    <string name="settings_displays_games_target_title">游戏</string>
+    <string name="settings_displays_apps_target_title">应用</string>
+    <string name="settings_displays_launch_target_value">%1$s（屏幕 %2$d）</string>
+    <string name="settings_displays_launch_target_no_app_screen">没有屏幕担任应用屏幕。将在%1$s上打开。</string>
+    <string name="settings_displays_by_platform_and_app_title">按平台和应用</string>
+    <string name="settings_displays_by_platform_and_app_none">全部遵循这些默认设置</string>
+    <plurals name="settings_displays_by_platform_and_app_count">
+        <item quantity="other">%d 项单独设置</item>
+    </plurals>
+    <string name="settings_launch_targets_title">目标显示屏</string>
+    <string name="settings_launch_targets_intro">按各项当前打开所在的屏幕分组。</string>
+    <string name="settings_launch_targets_rail">%1$s（屏幕 %2$d）</string>
+    <string name="settings_launch_targets_heading_description">屏幕 %1$d，%2$s</string>
+    <string name="settings_launch_targets_this_screen">本屏幕</string>
+    <string name="settings_launch_targets_platforms">平台</string>
+    <string name="settings_launch_targets_apps">应用</string>
+    <string name="settings_launch_targets_tag_default">默认</string>
+    <string name="settings_launch_targets_tag_set">已设置</string>
+    <string name="settings_launch_targets_platform_set">跟随%1$s</string>
+    <string name="settings_launch_targets_app_set">固定在屏幕 %1$d</string>
+    <string name="settings_launch_targets_app_missing">其屏幕未连接</string>
+    <string name="settings_launch_targets_app_off">屏幕 %1$d 已关闭</string>
+    <plurals name="settings_launch_targets_platform_game_overrides">
+        <item quantity="other">%d 款游戏单独设置</item>
+    </plurals>
+    <string name="settings_launch_targets_empty">此处没有打开的内容</string>
+    <string name="settings_launch_targets_loading_apps">正在查找应用</string>
+    <string name="settings_launch_targets_use_default_role">使用默认（%1$s）</string>
+    <string name="settings_launch_targets_use_default_screen">使用默认（屏幕 %1$d）</string>
+    <string name="settings_launch_targets_option_role">%1$s（屏幕 %2$d）</string>
+    <string name="settings_launch_targets_option_screen">屏幕 %1$d（%2$s）</string>
     <string name="settings_interface_presentation_title">展示</string>
     <string name="settings_interface_presentation_subtitle">另一块屏幕如何展示选中的游戏</string>
     <string name="settings_interface_section_general">常规</string>
     <string name="settings_interface_section_screens">屏幕</string>
     <string name="settings_interface_section_status_bar">状态栏</string>
+    <string name="settings_interface_section_recaps">回顾</string>
     <string name="settings_presentation_layout_title">布局</string>
     <string name="settings_presentation_layout_cinematic">影院</string>
     <string name="settings_presentation_layout_journal">日志</string>
@@ -254,6 +301,7 @@
     <string name="settings_presentation_scrim_blur">模糊</string>
     <string name="settings_presentation_scrim_none">无</string>
     <string name="settings_presentation_scrim_strength_title">遮罩强度</string>
+    <string name="settings_presentation_background_blur_title">背景模糊</string>
     <string name="settings_presentation_art_title">封面</string>
     <string name="settings_presentation_art_cover">封面</string>
     <string name="settings_presentation_art_box_3d">3D 盒装</string>
@@ -277,7 +325,7 @@
     <string name="settings_screens_role_presentation">展示</string>
     <string name="settings_screens_role_presentation_detail">显示你正在查看的内容，不含控件</string>
     <string name="settings_screens_role_app_target">应用屏幕</string>
-    <string name="settings_screens_role_app_target_detail">启动的应用在此打开</string>
+    <string name="settings_screens_role_app_target_detail">发送到这里的游戏和应用在此打开，不显示启动器</string>
     <string name="settings_screens_role_off">关闭</string>
     <string name="settings_screens_role_off_detail">Argosy 不在此屏幕显示任何内容</string>
     <string name="settings_displays_ambient_led_title">LED控制</string>
@@ -312,6 +360,10 @@
     <string name="settings_interface_status_battery_subtitle">在状态栏显示电池电量</string>
     <string name="settings_interface_status_network_title">网络</string>
     <string name="settings_interface_status_network_subtitle">在状态栏显示当前连接</string>
+    <string name="settings_interface_pre_launch_recaps_title">启动前回顾</string>
+    <string name="settings_interface_pre_launch_recaps_subtitle">启动一周未玩的 RetroAchievements 游戏前，显示上次停在哪里</string>
+    <string name="settings_interface_monthly_recap_title">月度回顾</string>
+    <string name="settings_interface_monthly_recap_subtitle">每月初在主页显示上个月的游玩总结</string>
 
     <string name="settings_home_screen_background_title">背景</string>
     <string name="settings_home_screen_background_subtitle">游戏美术图或背景图案</string>
@@ -431,6 +483,27 @@
     <string name="settings_ra_logout_title">登出</string>
     <string name="settings_ra_logout_title_busy">正在登出...</string>
     <string name="settings_ra_logout_subtitle">退出RetroAchievements登录</string>
+    <string name="settings_ra_web_api_key_title">Web API 密钥（可选）</string>
+    <string name="settings_ra_web_api_key_subtitle">可在 RetroAchievements 控制面板的 Keys 部分找到。让回顾更快、更丰富。</string>
+    <string name="settings_ra_web_api_key_value_not_set">未设置</string>
+    <string name="settings_ra_web_api_key_value_saved_short">已保存</string>
+    <string name="settings_ra_web_api_key_value_rejected">密钥被拒绝</string>
+    <string name="settings_ra_web_api_key_modal_title">RetroAchievements Web API 密钥</string>
+    <string name="settings_ra_web_api_key_modal_message">从 RetroAchievements 控制面板的 Keys 部分复制 Web API 密钥并粘贴到这里。Argosy 会在保存前验证一次。</string>
+    <string name="settings_ra_web_api_key_field_label">Web API 密钥</string>
+    <string name="settings_ra_web_api_key_paste">粘贴</string>
+    <string name="settings_ra_web_api_key_clear">清除</string>
+    <string name="settings_ra_web_api_key_cancel">取消</string>
+    <string name="settings_ra_web_api_key_save">保存</string>
+    <string name="settings_ra_web_api_key_save_busy">正在验证...</string>
+    <string name="settings_ra_web_api_key_status_validating">正在向 RetroAchievements 验证密钥...</string>
+    <string name="settings_ra_web_api_key_status_rejected">RetroAchievements 未接受此密钥。</string>
+    <string name="settings_ra_web_api_key_status_unreachable">无法连接 RetroAchievements。请重试。</string>
+    <string name="settings_ra_web_api_key_status_clipboard_empty">剪贴板中没有可粘贴的文本。</string>
+    <string name="settings_ra_web_api_key_saved_title">Web API 密钥已保存</string>
+    <string name="settings_ra_web_api_key_saved_subtitle">回顾现在直接读取 RetroAchievements。</string>
+    <string name="settings_ra_web_api_key_cleared_title">Web API 密钥已移除</string>
+    <string name="settings_ra_web_api_key_cleared_subtitle">此设备不再保存该密钥。</string>
 
     <string name="settings_ra_play_mode_title">游戏模式偏好</string>
     <string name="settings_ra_play_mode_subtitle_locked">需要开启安全存档</string>
@@ -1312,9 +1385,11 @@
     <string name="settings_builtin_architecture_title">架构</string>
 
     <string name="settings_builtin_video_title">音视频与性能</string>
-    <string name="settings_builtin_video_subtitle">着色器、显示、性能、存档</string>
+    <string name="settings_builtin_video_subtitle">着色器、显示、性能</string>
     <string name="settings_builtin_controls_title">控制</string>
     <string name="settings_builtin_controls_subtitle">震动、按键映射、快捷键</string>
+    <string name="settings_builtin_saves_title">存档</string>
+    <string name="settings_builtin_saves_subtitle">即时存档、服务器存档、文件夹</string>
 
     <string name="settings_builtin_cores_title">管理核心</string>
     <string name="settings_builtin_cores_subtitle">已安装%1$d/%2$d个核心</string>
@@ -1567,6 +1642,7 @@
     <string name="settings_platform_extension_default">默认</string>
     <string name="settings_platform_display_target_title">目标显示屏</string>
     <string name="settings_platform_display_target_default">默认</string>
+    <string name="settings_platform_display_target_default_resolved">默认（%1$s）</string>
     <string name="settings_platform_display_target_presentation">展示屏幕</string>
     <string name="settings_platform_display_target_primary">主控屏幕</string>
     <string name="settings_platform_display_target_app_screen">应用屏幕</string>
@@ -1575,9 +1651,11 @@
     <string name="settings_platform_launch_args_title">启动参数</string>
     <string name="settings_platform_launch_args_subtitle">自定义Argosy启动此模拟器的方式</string>
     <string name="settings_platform_builtin_video_title">内置音视频与性能</string>
-    <string name="settings_platform_builtin_video_subtitle">显示、性能与存档的覆盖设置</string>
+    <string name="settings_platform_builtin_video_subtitle">显示与性能的覆盖设置</string>
     <string name="settings_platform_builtin_controls_title">内置控制</string>
     <string name="settings_platform_builtin_controls_subtitle">震动、摇杆映射的覆盖设置</string>
+    <string name="settings_platform_builtin_saves_title">内置存档</string>
+    <string name="settings_platform_builtin_saves_subtitle">即时存档与文件夹的覆盖设置</string>
     <string name="settings_platform_core_options_title">核心选项</string>
     <string name="settings_platform_core_options_subtitle">此平台的各核心设置</string>
 
@@ -1680,8 +1758,8 @@
 
     <!-- ===== GameNative folders panel ===== -->
 
-    <string name="settings_gamenative_folders_title">GameNative文件夹</string>
-    <string name="settings_gamenative_folders_subtitle">将每个商店指向GameNative导出安装内容的文件夹。Steam标记仅将已拥有的游戏标记为已安装；其他商店会添加或移除游戏以保持一致。</string>
+    <string name="settings_gamenative_folders_title">启动器同步文件夹</string>
+    <string name="settings_gamenative_folders_subtitle">将每个商店指向GameNative导出安装内容的文件夹，并将DroidDeck指向其游戏文件文件夹。Steam标记仅将已拥有的游戏标记为已安装；其他商店会添加或移除游戏以保持一致。</string>
     <string name="settings_gamenative_folders_hint_set">设置/清除</string>
     <string name="settings_gamenative_folders_hint_select">选择</string>
     <string name="settings_gamenative_folders_hint_back">返回</string>
@@ -1976,6 +2054,7 @@
     <string name="settings_emulator_picker_version_unknown">?</string>
     <string name="settings_emulator_picker_version_update_arrow">%1$s -&gt; %2$s</string>
     <string name="settings_emulator_picker_installed_label">已安装</string>
+    <string name="settings_emulator_picker_builtin_core_build">%1$s（构建于 %2$s）</string>
     <string name="settings_emulator_picker_download_header">可供下载</string>
     <string name="settings_emulator_picker_downloadable_downloading_progress">正在下载%1$d%%</string>
     <string name="settings_emulator_picker_downloadable_installing">正在安装...</string>
@@ -2060,13 +2139,12 @@
     <!-- ===== Controller order modal ===== -->
 
     <string name="settings_controller_order_title">手柄顺序</string>
-    <string name="settings_controller_order_subtitle">按任意按钮以分配手柄</string>
-    <string name="settings_controller_order_hint_confirm">确认</string>
-    <string name="settings_controller_order_hint_unregister_back">取消注册/返回</string>
+    <string name="settings_controller_order_subtitle">按下手柄上的按钮即可找到它。</string>
+    <string name="settings_controller_order_hint_clear_all">全部清除</string>
     <string name="settings_controller_order_default_name">手柄</string>
     <string name="settings_controller_order_slot_label">P%1$d</string>
-    <string name="settings_controller_order_slot_pressing">请按下...</string>
-    <string name="settings_controller_order_slot_empty">空</string>
+    <string name="settings_controller_order_seat_none">无</string>
+    <string name="settings_controller_order_empty">未连接手柄</string>
 
     <!-- ===== Grip controller modal ===== -->
 
@@ -2404,6 +2482,8 @@
     <string name="settings_play_time_section_where">设备</string>
     <string name="settings_play_time_section_what">你玩什么</string>
     <string name="settings_play_time_section_facts">速览</string>
+    <string name="settings_play_time_last_month_title">上月回顾</string>
+    <string name="settings_play_time_last_month_subtitle">上个月的游戏时长、新宠游戏和成就</string>
     <string name="settings_play_time_loading_title">正在读取会话...</string>
     <string name="settings_play_time_loading_message">你的游戏习惯马上就会显示。</string>
     <string name="settings_play_time_empty_title">还没有游戏会话</string>
@@ -2519,4 +2599,21 @@
     <string name="settings_play_time_devices_list_empty">还没有设备有游戏记录。</string>
     <string name="settings_play_time_games_list_empty">还没有游戏有游玩记录。</string>
 
+    <string name="settings_builtin_graphics_header">图形</string>
+    <string name="settings_builtin_graphics_backend_title">渲染后端</string>
+    <string name="settings_builtin_graphics_backend_core_subtitle">%1$s 的选项，所有使用它的平台共用</string>
+    <string name="settings_builtin_graphics_backend_platform_subtitle">%1$s 在此平台上的渲染器</string>
+    <string name="settings_builtin_gpu_driver_title">GPU 驱动</string>
+    <string name="settings_builtin_gpu_driver_subtitle">内置核心使用的 Vulkan 驱动</string>
+    <string name="settings_builtin_gpu_driver_global_hint">全局：%1$s</string>
+    <string name="settings_builtin_gpu_driver_system">系统驱动</string>
+    <string name="settings_builtin_gpu_driver_missing">驱动缺失（正在使用系统驱动）</string>
+    <string name="settings_builtin_gpu_driver_install">安装 %1$s</string>
+    <string name="settings_builtin_gpu_driver_installing">正在安装 %1$s...</string>
+    <string name="settings_builtin_gpu_driver_installed">已安装 %1$s</string>
+    <string name="settings_builtin_gpu_driver_install_failed">无法安装 %1$s</string>
+    <string name="settings_builtin_gpu_driver_reason_core_unsupported">%1$s 不支持</string>
+    <string name="settings_builtin_gpu_driver_reason_core_system_only">%1$s 使用系统驱动</string>
+    <string name="settings_builtin_gpu_driver_reason_backend">渲染后端为 Vulkan 时生效</string>
+    <string name="settings_builtin_gpu_driver_reason_device">自定义驱动需要 Adreno GPU</string>
 </resources>

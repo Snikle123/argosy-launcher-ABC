@@ -4,6 +4,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -13,6 +15,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import com.nendo.argosy.ui.theme.generated.MotionTokens
 
@@ -88,6 +92,63 @@ fun Modifier.touchOnly(onClick: () -> Unit, onLongPress: () -> Unit): Modifier =
     val currentOnLongPress by rememberUpdatedState(onLongPress)
     pointerInput(Unit) {
         detectTapGestures(onTap = { currentOnClick() }, onLongPress = { currentOnLongPress() })
+    }
+}
+
+internal enum class ObservedTapStep { PENDING, TAP, ABANDON }
+
+internal fun observedTapStep(
+    travelled: Float,
+    touchSlop: Float,
+    released: Boolean,
+    consumedAbove: Boolean
+): ObservedTapStep = when {
+    consumedAbove -> ObservedTapStep.ABANDON
+    travelled > touchSlop -> ObservedTapStep.ABANDON
+    released -> ObservedTapStep.TAP
+    else -> ObservedTapStep.PENDING
+}
+
+/**
+ * Reports a tap inside the element without consuming it, so the clickable content underneath
+ * receives the same tap. A press that travels past touch slop is a scroll and reports nothing,
+ * and so is a press an enclosing layer consumed. [onTap] runs before the content's own click
+ * handler sees the release.
+ */
+fun Modifier.observeTap(onTap: () -> Unit): Modifier = composed {
+    val currentOnTap by rememberUpdatedState(onTap)
+    pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            if (down.isConsumed) return@awaitEachGesture
+            val slop = viewConfiguration.touchSlop
+            while (true) {
+                val change = awaitPointerEvent(PointerEventPass.Initial).changes
+                    .firstOrNull { it.id == down.id } ?: break
+                val step = observedTapStep(
+                    travelled = (change.position - down.position).getDistance(),
+                    touchSlop = slop,
+                    released = change.changedToUpIgnoreConsumed(),
+                    consumedAbove = change.isConsumed
+                )
+                if (step == ObservedTapStep.TAP) currentOnTap()
+                if (step != ObservedTapStep.PENDING) break
+            }
+        }
+    }
+}
+
+/**
+ * Reports the first finger landing inside the element without consuming it, ahead of any
+ * scroll or click the content runs on the same press.
+ */
+fun Modifier.observeTouchDown(onDown: () -> Unit): Modifier = composed {
+    val currentOnDown by rememberUpdatedState(onDown)
+    pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            currentOnDown()
+        }
     }
 }
 

@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.time.Instant
+import java.time.YearMonth
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,7 +21,7 @@ data class AppPreferences(
     val betaUpdatesEnabled: Boolean = false,
     val closeEmulatorOnSessionEnd: Boolean = false,
     val hiddenApps: Set<String> = emptySet(),
-    val secondaryHomeApps: Set<String> = emptySet(),
+    val secondaryHomeApps: List<String> = emptyList(),
     val visibleSystemApps: Set<String> = emptySet(),
     val appOrder: List<String> = emptyList(),
     val lastSeenVersion: String? = null,
@@ -33,7 +34,11 @@ data class AppPreferences(
     val fileLoggingPath: String? = null,
     val fileLogLevel: LogLevel = LogLevel.INFO,
     val appDisplayTargets: Map<String, String> = emptyMap(),
-    val appLanguage: AppLanguage = AppLanguage.SYSTEM
+    val appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    val preLaunchRecapsEnabled: Boolean = true,
+    val monthlyRecapEnabled: Boolean = true,
+    val lastMonthlyRecapShown: YearMonth? = null,
+    val preLaunchRecapBaseline: Instant? = null
 )
 
 @Singleton
@@ -63,6 +68,10 @@ class AppPreferencesRepository @Inject constructor(
         val SIBLING_PICK_SEEDED_OWNERS = stringPreferencesKey("sibling_pick_seeded_owners")
         val SIBLING_FULL_PASS_DONE = booleanPreferencesKey("sibling_full_pass_done")
         val VARIANT_FILE_CLEANUP_DONE = booleanPreferencesKey("variant_file_cleanup_done")
+        val PRE_LAUNCH_RECAPS_ENABLED = booleanPreferencesKey("pre_launch_recaps_enabled")
+        val MONTHLY_RECAP_ENABLED = booleanPreferencesKey("monthly_recap_enabled")
+        val LAST_MONTHLY_RECAP_SHOWN = stringPreferencesKey("last_monthly_recap_shown")
+        val PRE_LAUNCH_RECAP_BASELINE = stringPreferencesKey("pre_launch_recap_baseline")
     }
 
     val preferences: Flow<AppPreferences> = dataStore.data.map { prefs ->
@@ -75,11 +84,7 @@ class AppPreferencesRepository @Inject constructor(
                 ?.filter { it.isNotBlank() }
                 ?.toSet()
                 ?: emptySet(),
-            secondaryHomeApps = prefs[Keys.SECONDARY_HOME_APPS]
-                ?.split(",")
-                ?.filter { it.isNotBlank() }
-                ?.toSet()
-                ?: emptySet(),
+            secondaryHomeApps = parseDockPins(prefs[Keys.SECONDARY_HOME_APPS]),
             visibleSystemApps = prefs[Keys.VISIBLE_SYSTEM_APPS]
                 ?.split(",")
                 ?.filter { it.isNotBlank() }
@@ -106,7 +111,13 @@ class AppPreferencesRepository @Inject constructor(
             fileLoggingPath = prefs[Keys.FILE_LOGGING_PATH],
             fileLogLevel = LogLevel.fromString(prefs[Keys.FILE_LOG_LEVEL]),
             appDisplayTargets = parseAppDisplayTargets(prefs[Keys.APP_DISPLAY_TARGETS]),
-            appLanguage = AppLanguage.fromString(prefs[Keys.APP_LANGUAGE])
+            appLanguage = AppLanguage.fromString(prefs[Keys.APP_LANGUAGE]),
+            preLaunchRecapsEnabled = prefs[Keys.PRE_LAUNCH_RECAPS_ENABLED] ?: true,
+            monthlyRecapEnabled = prefs[Keys.MONTHLY_RECAP_ENABLED] ?: true,
+            lastMonthlyRecapShown = prefs[Keys.LAST_MONTHLY_RECAP_SHOWN]
+                ?.let { runCatching { YearMonth.parse(it) }.getOrNull() },
+            preLaunchRecapBaseline = prefs[Keys.PRE_LAUNCH_RECAP_BASELINE]
+                ?.let { runCatching { Instant.parse(it) }.getOrNull() }
         )
     }.flowOn(Dispatchers.Default)
 
@@ -129,12 +140,33 @@ class AppPreferencesRepository @Inject constructor(
         }
     }
 
-    suspend fun setSecondaryHomeApps(apps: Set<String>) {
+    suspend fun toggleDockPin(packageName: String): Boolean {
+        require(packageName.isNotBlank())
+        var pinned = false
         dataStore.edit { prefs ->
-            if (apps.isEmpty()) prefs.remove(Keys.SECONDARY_HOME_APPS)
-            else prefs[Keys.SECONDARY_HOME_APPS] = apps.joinToString(",")
+            val current = parseDockPins(prefs[Keys.SECONDARY_HOME_APPS])
+            pinned = packageName !in current
+            val pins = if (pinned) current + packageName else current - packageName
+            if (pins.isEmpty()) prefs.remove(Keys.SECONDARY_HOME_APPS)
+            else prefs[Keys.SECONDARY_HOME_APPS] = pins.joinToString(",")
         }
+        return pinned
     }
+
+    suspend fun reorderDockPins(expected: List<String>, order: List<String>): Boolean {
+        var accepted = false
+        dataStore.edit { prefs ->
+            val current = parseDockPins(prefs[Keys.SECONDARY_HOME_APPS])
+            if (current == expected && order.size == current.size && order.toSet() == current.toSet()) {
+                accepted = true
+                if (order != current) prefs[Keys.SECONDARY_HOME_APPS] = order.joinToString(",")
+            }
+        }
+        return accepted
+    }
+
+    private fun parseDockPins(value: String?): List<String> =
+        value?.split(",")?.filter { it.isNotBlank() }?.distinct() ?: emptyList()
 
     suspend fun setVisibleSystemApps(apps: Set<String>) {
         dataStore.edit { prefs ->
@@ -245,6 +277,22 @@ class AppPreferencesRepository @Inject constructor(
 
     suspend fun setAppLanguage(tag: String) {
         dataStore.edit { it[Keys.APP_LANGUAGE] = tag }
+    }
+
+    suspend fun setPreLaunchRecapsEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.PRE_LAUNCH_RECAPS_ENABLED] = enabled }
+    }
+
+    suspend fun setMonthlyRecapEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.MONTHLY_RECAP_ENABLED] = enabled }
+    }
+
+    suspend fun setLastMonthlyRecapShown(month: YearMonth) {
+        dataStore.edit { it[Keys.LAST_MONTHLY_RECAP_SHOWN] = month.toString() }
+    }
+
+    suspend fun setPreLaunchRecapBaseline(at: Instant) {
+        dataStore.edit { it[Keys.PRE_LAUNCH_RECAP_BASELINE] = at.toString() }
     }
 
     suspend fun setAppDisplayTarget(packageName: String, screenKey: String?) {

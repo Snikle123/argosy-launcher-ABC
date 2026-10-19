@@ -2,8 +2,10 @@ package com.nendo.argosy.ui.screens.settings
 
 import androidx.annotation.StringRes
 import com.nendo.argosy.R
+import com.nendo.argosy.ui.common.BuiltinCoreSummary
 import com.nendo.argosy.ui.common.DisplayText
 import com.nendo.argosy.ui.components.TextEntryFocus
+import com.nendo.argosy.ui.components.TextEntryRow
 import com.nendo.argosy.core.emulator.EmulatorDownloadState
 import com.nendo.argosy.data.cache.GradientExtractionConfig
 import com.nendo.argosy.ui.common.GradientExtractionResult
@@ -114,12 +116,14 @@ enum class SettingsSection {
     LIBRARY_VIEW,
     DISPLAYS,
     SCREENS,
+    LAUNCH_TARGETS,
     AMBIENT_LED,
     NAVIGATION,
     PLATFORMS,
     BUILTIN_EMULATOR,
     BUILTIN_VIDEO,
     BUILTIN_CONTROLS,
+    BUILTIN_SAVES,
     SHADER_STACK,
     FRAME_PICKER,
     CORE_MANAGEMENT,
@@ -193,6 +197,10 @@ data class PlatformEmulatorConfig(
         .showsDisplayTarget(hasSecondaryDisplay)
 }
 
+internal fun <T> List<T>.inPlatformsListOrder(platformOf: (T) -> PlatformEntity): List<T> =
+    filter { platformOf(it).slug != "steam" }
+        .sortedByDescending { platformOf(it).syncEnabled }
+
 data class EmulatorUpdateInfo(
     val emulatorId: String,
     val currentVersion: String?,
@@ -212,7 +220,8 @@ data class EmulatorPickerInfo(
     val selectedEmulatorName: String?,
     val updates: Map<String, EmulatorUpdateInfo> = emptyMap(),
     val downloadState: EmulatorDownloadState = EmulatorDownloadState.Idle,
-    val downloadingEmulatorId: String? = null
+    val downloadingEmulatorId: String? = null,
+    val builtinCore: BuiltinCoreSummary? = null
 )
 
 data class VariantOption(
@@ -259,11 +268,20 @@ data class DisplayState(
         com.nendo.argosy.domain.model.HomeLayoutSettings(),
     val presentationStyle: com.nendo.argosy.domain.model.PresentationStyle =
         com.nendo.argosy.domain.model.PresentationStyle(),
+    val presentationBackgroundBlur: Int = 0,
     val box3dCapableGames: Int = 0,
     val libraryBoxArt3d: Boolean = false,
     val useAccentColorFooter: Boolean = false,
     val compactFooter: Boolean = false,
+    val hideSystemNavigationBar: Boolean = true,
+    val hideSystemStatusBar: Boolean = true,
     val lockScreenArt: Boolean = true,
+    val homeAppAvailable: Boolean = true,
+    val isDefaultHome: Boolean = false,
+    val preLaunchRecaps: Boolean = true,
+    val monthlyRecap: Boolean = true,
+    val iconPack: String? = null,
+    val iconPacks: List<com.nendo.argosy.data.model.IconPack> = emptyList(),
     val boxArtShape: BoxArtShape = BoxArtShape.STANDARD,
     val boxArtCornerRadius: BoxArtCornerRadius = BoxArtCornerRadius.MEDIUM,
     val boxArtBorderThickness: BoxArtBorderThickness = BoxArtBorderThickness.MEDIUM,
@@ -316,6 +334,10 @@ data class DisplayState(
     val hasPhysicalSecondaryDisplay: Boolean = false,
     val dualScreenEnabled: Boolean = false,
     val displayRoleOverride: DisplayRoleOverride = DisplayRoleOverride.AUTO,
+    val gamesLaunchTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.PRESENTATION,
+    val appsLaunchTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.DEFAULT,
+    val launchTargetScreens: LaunchTargetScreens = LaunchTargetScreens(),
+    val launchTargetSetCount: Int = 0,
     val screens: List<ScreenAssignment> = emptyList(),
     val screenRoleModalOpen: Boolean = false,
     val screenRoleModalFocus: Int = 0,
@@ -326,6 +348,45 @@ data class DisplayState(
 ) {
     val secondaryDisplayUnsupported: Boolean
         get() = dualScreenEnabled && hasPhysicalSecondaryDisplay && !hasSecondaryDisplay
+
+    val iconPackOptions: List<String?>
+        get() = listOf<String?>(null) + iconPacks.map { it.packageName }
+
+    val selectedIconPackIndex: Int
+        get() = iconPackOptions.indexOf(iconPack).coerceAtLeast(0)
+}
+
+/**
+ * The screen number holding each launch role right now, role swap applied. Null for a role no
+ * attached screen holds.
+ */
+data class LaunchTargetScreens(
+    val primary: Int? = null,
+    val presentation: Int? = null,
+    val appScreen: Int? = null
+) {
+    val options: List<EmulatorDisplayTarget>
+        get() = listOfNotNull(
+            EmulatorDisplayTarget.PRESENTATION,
+            EmulatorDisplayTarget.PRIMARY,
+            EmulatorDisplayTarget.APP_SCREEN.takeIf { appScreen != null }
+        )
+
+    fun shown(stored: EmulatorDisplayTarget): EmulatorDisplayTarget = when {
+        stored != EmulatorDisplayTarget.DEFAULT -> stored
+        appScreen != null -> EmulatorDisplayTarget.APP_SCREEN
+        else -> EmulatorDisplayTarget.PRESENTATION
+    }
+
+    fun numberFor(target: EmulatorDisplayTarget): Int? = when (target) {
+        EmulatorDisplayTarget.PRIMARY -> primary
+        EmulatorDisplayTarget.PRESENTATION -> presentation
+        EmulatorDisplayTarget.APP_SCREEN -> appScreen
+        EmulatorDisplayTarget.DEFAULT -> null
+    }
+
+    fun lacksAppScreen(target: EmulatorDisplayTarget): Boolean =
+        target == EmulatorDisplayTarget.APP_SCREEN && appScreen == null
 }
 
 data class ScreenAssignment(
@@ -358,6 +419,7 @@ data class ControlsState(
     val shortcutCaptureTarget: com.nendo.argosy.ui.input.UiShortcut? = null,
     val navRingRoutes: List<String> = com.nendo.argosy.ui.navigation.NavRing.DEFAULT_TOKENS,
     val quickNavigation: Boolean = true,
+    val navBarAutoHide: Boolean = true,
     val showNavRingModal: Boolean = false,
     val navRingFocusIndex: Int = 0,
     val navRingReorder: com.nendo.argosy.ui.components.ListReorder<String>? = null
@@ -671,7 +733,9 @@ data class BuiltinVideoState(
     val isCustomSavePath: Boolean = false,
     val isCustomStatePath: Boolean = false,
     val platformContextIndex: Int = 0,
-    val availablePlatforms: List<PlatformContext> = emptyList()
+    val availablePlatforms: List<PlatformContext> = emptyList(),
+    val gpuDriver: String = com.nendo.argosy.data.emulator.GpuDriverToken.SYSTEM,
+    val graphics: BuiltinGraphicsState = BuiltinGraphicsState()
 ) {
     val canEnableBlackFrameInsertion: Boolean get() = displayRefreshRate >= 120f
     val isGlobalContext: Boolean get() = platformContextIndex == 0
@@ -762,13 +826,26 @@ enum class CoreChipStatus {
     ACTIVE
 }
 
+data class CoreUpdateBuilds(
+    val installedVersion: String,
+    val latestVersion: String
+)
+
 data class CoreChipState(
     val coreId: String,
     val displayName: String,
     val isInstalled: Boolean,
     val isActive: Boolean,
     val netplaySupported: Boolean = false,
-    val updateAvailable: Boolean = false
+    val pendingUpdate: CoreUpdateBuilds? = null
+) {
+    val updateAvailable: Boolean get() = pendingUpdate != null
+}
+
+data class CoreBulkUpdateProgress(
+    val coreName: String? = null,
+    val position: Int = 0,
+    val total: Int = 0
 )
 
 data class PlatformCoreRow(
@@ -782,14 +859,16 @@ data class PlatformCoreRow(
 
 data class CoreManagementState(
     val platforms: List<PlatformCoreRow> = emptyList(),
-    val focusedPlatformIndex: Int = 0,
+    val focusedRowIndex: Int = 0,
     val focusedCoreIndex: Int = 0,
     val isOnline: Boolean = false,
     val isDownloading: Boolean = false,
-    val downloadingCoreId: String? = null
+    val downloadingCoreId: String? = null,
+    val pendingUpdateCount: Int = 0,
+    val bulkUpdate: CoreBulkUpdateProgress? = null,
+    val bulkUpdateFailedCount: Int = 0
 ) {
-    val focusedPlatform: PlatformCoreRow? get() = platforms.getOrNull(focusedPlatformIndex)
-    val focusedCore: CoreChipState? get() = focusedPlatform?.cores?.getOrNull(focusedCoreIndex)
+    val showUpdateAll: Boolean get() = pendingUpdateCount > 0 || bulkUpdate != null
 }
 
 data class CoreOptionsCoreContext(
@@ -1547,6 +1626,45 @@ data class PermissionsState(
 const val RA_PROXY_TOGGLE_INDEX = 1
 const val RA_PROXY_FIELD_INDEX = 2
 
+const val RA_LOGGED_IN_LOGOUT_INDEX = 0
+const val RA_LOGGED_IN_WEB_API_KEY_INDEX = 1
+const val RA_LOGGED_IN_PLAY_MODE_INDEX = 2
+const val RA_LOGGED_IN_PROXY_TOGGLE_INDEX = 3
+const val RA_LOGGED_IN_PROXY_FIELD_INDEX = 4
+
+fun raLoggedInPushIndex(proxyEnabled: Boolean): Int =
+    if (proxyEnabled) RA_LOGGED_IN_PROXY_FIELD_INDEX + 1 else RA_LOGGED_IN_PROXY_TOGGLE_INDEX + 1
+
+fun raLoggedInMaxFocusIndex(proxyEnabled: Boolean, canPushToRetroArch: Boolean): Int =
+    if (canPushToRetroArch) raLoggedInPushIndex(proxyEnabled) else raLoggedInPushIndex(proxyEnabled) - 1
+
+enum class RAWebApiKeyAction { PASTE, CLEAR, CANCEL, SAVE }
+
+enum class RAWebApiKeyStatus { IDLE, VALIDATING, REJECTED, UNREACHABLE, CLIPBOARD_EMPTY }
+
+/**
+ * The open web API key editor. [buttonIndex] points into [actions] while [row] is the button row.
+ */
+data class RAWebApiKeyEditor(
+    val draft: String = "",
+    val actions: List<RAWebApiKeyAction>,
+    val row: TextEntryRow = TextEntryRow.FIELD,
+    val buttonIndex: Int = actions.indexOf(RAWebApiKeyAction.SAVE).coerceAtLeast(0),
+    val status: RAWebApiKeyStatus = RAWebApiKeyStatus.IDLE
+) {
+    val focusedAction: RAWebApiKeyAction?
+        get() = if (row == TextEntryRow.BUTTONS) actions.getOrNull(buttonIndex) else null
+
+    companion object {
+        fun actionsFor(hasStoredKey: Boolean): List<RAWebApiKeyAction> = buildList {
+            add(RAWebApiKeyAction.PASTE)
+            if (hasStoredKey) add(RAWebApiKeyAction.CLEAR)
+            add(RAWebApiKeyAction.CANCEL)
+            add(RAWebApiKeyAction.SAVE)
+        }
+    }
+}
+
 data class RASettingsState(
     val isLoggedIn: Boolean = false,
     val username: String? = null,
@@ -1561,7 +1679,11 @@ data class RASettingsState(
     val proxyEnabled: Boolean = false,
     val proxyAddress: String = "",
     val canPushToRetroArch: Boolean = false,
-    val defaultToHardcore: String = "ask"
+    val defaultToHardcore: String = "ask",
+    val hasWebApiKey: Boolean = false,
+    val webApiKeySuffix: String? = null,
+    val webApiKeyRejected: Boolean = false,
+    val webApiKeyEditor: RAWebApiKeyEditor? = null
 )
 
 data class BiosFirmwareItem(
@@ -1769,9 +1891,16 @@ internal fun SettingsUiState.poppedSection(restoredFocus: Int? = null): Settings
     )
 }
 
+internal fun SettingsUiState.touchFocused(index: Int, maxIndex: Int): SettingsUiState =
+    copy(
+        focusedIndex = if (index in 0..maxIndex) index else focusedIndex,
+        isTouchMode = true
+    )
+
 data class SettingsUiState(
     val currentSection: SettingsSection = SettingsSection.MAIN,
     val focusedIndex: Int = 0,
+    val isTouchMode: Boolean = false,
     /**
      * Ancestors of [currentSection], oldest first, excluding [currentSection] itself. Empty
      * means there is nothing above the current screen and Back leaves settings, which is
@@ -1783,6 +1912,7 @@ data class SettingsUiState(
     val rootScriptDialog: RootScriptDialogState? = null,
     val colorFocusIndex: Int = 0,
     val display: DisplayState = DisplayState(),
+    val launchTargets: LaunchTargetsState = LaunchTargetsState(),
     val controls: ControlsState = ControlsState(),
     val managedInstallers: ManagedInstallersState = ManagedInstallersState(),
     val sounds: SoundState = SoundState(),

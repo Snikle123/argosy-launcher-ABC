@@ -29,6 +29,7 @@ data class SyncPreferences(
     val rommDeviceClientVersion: String? = null,
     val raUsername: String? = null,
     val raToken: String? = null,
+    val raWebApiKey: String? = null,
     val raProxyEnabled: Boolean = false,
     val raProxyAddress: String = "",
     val lastRommSync: Instant? = null,
@@ -72,6 +73,10 @@ data class SyncPreferences(
 class SyncPreferencesRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
+    private companion object {
+        const val MIGRATION_NOTICES_KEPT = 200
+    }
+
     private object Keys {
         val ROMM_URL = stringPreferencesKey("romm_url")
         val ROMM_USERNAME = stringPreferencesKey("romm_username")
@@ -84,6 +89,7 @@ class SyncPreferencesRepository @Inject constructor(
         val ROMM_SNAPSHOTS_SUPPORTED = booleanPreferencesKey("romm_snapshots_supported")
         val RA_USERNAME = stringPreferencesKey("ra_username")
         val RA_TOKEN = stringPreferencesKey("ra_token")
+        val RA_WEB_API_KEY = stringPreferencesKey("ra_web_api_key")
         val RA_PROXY_ENABLED = booleanPreferencesKey("ra_proxy_enabled")
         val RA_PROXY_ADDRESS = stringPreferencesKey("ra_proxy_address")
         val LAST_ROMM_SYNC = stringPreferencesKey("last_romm_sync")
@@ -132,6 +138,7 @@ class SyncPreferencesRepository @Inject constructor(
         val SOCIAL_HIDDEN_GAME_IDS = stringPreferencesKey("social_hidden_game_ids")
         val SAVE_SYNC_LOCAL_REKEY_DONE = booleanPreferencesKey("save_sync_local_rekey_done")
         val SAVE_PATH_CACHE_PURGED = booleanPreferencesKey("save_path_cache_purged")
+        val SAVE_MIGRATION_NOTICES_SHOWN = stringPreferencesKey("save_migration_notices_shown")
         val SIBLING_SPLIT_REPAIR_DONE = booleanPreferencesKey("sibling_split_repair_finished")
         val SIBLING_CONFIG_CARRY_OVER_DONE = booleanPreferencesKey("sibling_config_carry_over_done")
         val QUAYPASS_ENABLED = booleanPreferencesKey("quaypass_enabled")
@@ -221,6 +228,19 @@ class SyncPreferencesRepository @Inject constructor(
         dataStore.edit { it[Keys.SAVE_PATH_CACHE_PURGED] = true }
     }
 
+    suspend fun isSaveMigrationNoticeShown(cacheId: Long): Boolean =
+        dataStore.data.map { cacheId in shownMigrationNotices(it[Keys.SAVE_MIGRATION_NOTICES_SHOWN]) }.first()
+
+    suspend fun markSaveMigrationNoticeShown(cacheId: Long) {
+        dataStore.edit { prefs ->
+            val shown = shownMigrationNotices(prefs[Keys.SAVE_MIGRATION_NOTICES_SHOWN]) - cacheId
+            prefs[Keys.SAVE_MIGRATION_NOTICES_SHOWN] = (shown + cacheId).takeLast(MIGRATION_NOTICES_KEPT).joinToString(",")
+        }
+    }
+
+    private fun shownMigrationNotices(stored: String?): List<Long> =
+        stored?.split(",")?.mapNotNull { it.toLongOrNull() }.orEmpty()
+
     suspend fun isSiblingSplitRepairDone(): Boolean =
         dataStore.data.map { it[Keys.SIBLING_SPLIT_REPAIR_DONE] ?: false }.first()
 
@@ -306,6 +326,7 @@ class SyncPreferencesRepository @Inject constructor(
             rommDeviceClientVersion = prefs[Keys.ROMM_DEVICE_CLIENT_VERSION],
             raUsername = prefs[Keys.RA_USERNAME],
             raToken = prefs[Keys.RA_TOKEN],
+            raWebApiKey = prefs[Keys.RA_WEB_API_KEY],
             raProxyEnabled = prefs[Keys.RA_PROXY_ENABLED] ?: false,
             raProxyAddress = prefs[Keys.RA_PROXY_ADDRESS] ?: "",
             lastRommSync = prefs[Keys.LAST_ROMM_SYNC]?.let { Instant.parse(it) },
@@ -358,9 +379,9 @@ class SyncPreferencesRepository @Inject constructor(
     }
 
     /**
-     * The device id is dropped only when the identity changes. [baseUrl] names the address in
-     * use, and one instance answers on more than one address, so a URL change on its own says
-     * nothing about which server the device is registered with.
+     * The device id and the play-session pull time are dropped only when the identity changes.
+     * [baseUrl] names the address in use, and one instance answers on more than one address, so
+     * a URL change on its own says nothing about which server the device is registered with.
      */
     suspend fun setRomMCredentials(
         baseUrl: String,
@@ -378,6 +399,7 @@ class SyncPreferencesRepository @Inject constructor(
             if (userChanged) {
                 prefs.remove(Keys.ROMM_DEVICE_ID)
                 prefs.remove(Keys.ROMM_DEVICE_CLIENT_VERSION)
+                prefs.remove(Keys.ROMM_PLAY_SESSION_LAST_PULL)
             }
         }
     }
@@ -418,8 +440,15 @@ class SyncPreferencesRepository @Inject constructor(
         }
     }
 
+    /**
+     * Signing in as a different RetroAchievements user drops the stored web API key.
+     */
     suspend fun setRACredentials(username: String, token: String) {
         dataStore.edit { prefs ->
+            val previous = prefs[Keys.RA_USERNAME]
+            if (previous != null && !previous.equals(username, ignoreCase = true)) {
+                prefs.remove(Keys.RA_WEB_API_KEY)
+            }
             prefs[Keys.RA_USERNAME] = username
             prefs[Keys.RA_TOKEN] = token
         }
@@ -429,6 +458,14 @@ class SyncPreferencesRepository @Inject constructor(
         dataStore.edit { prefs ->
             prefs.remove(Keys.RA_USERNAME)
             prefs.remove(Keys.RA_TOKEN)
+            prefs.remove(Keys.RA_WEB_API_KEY)
+        }
+    }
+
+    suspend fun setRAWebApiKey(key: String?) {
+        dataStore.edit { prefs ->
+            val trimmed = key?.trim().orEmpty()
+            if (trimmed.isEmpty()) prefs.remove(Keys.RA_WEB_API_KEY) else prefs[Keys.RA_WEB_API_KEY] = trimmed
         }
     }
 
@@ -774,6 +811,12 @@ class SyncPreferencesRepository @Inject constructor(
             ?.toSet()
             ?: emptySet()
     }
+
+    /**
+     * The IGDB ids of games marked Private, in the shape play-time queries take to leave them
+     * out of every total.
+     */
+    suspend fun privateIgdbIds(): List<Long> = hiddenGameIds().first().map(Int::toLong)
 
     suspend fun setHiddenGameIds(ids: Set<Int>) {
         dataStore.edit { prefs ->

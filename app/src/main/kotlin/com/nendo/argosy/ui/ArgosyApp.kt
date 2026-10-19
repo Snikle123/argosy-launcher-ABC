@@ -11,10 +11,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalNavigationDrawer
@@ -43,6 +46,7 @@ import android.content.Intent
 import com.nendo.argosy.ui.util.doubleTapNoFocus
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import com.nendo.argosy.libretro.LibretroActivity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,7 +60,11 @@ import com.nendo.argosy.ui.components.revealOnBottomEdgeTouch
 import com.nendo.argosy.ui.components.FooterHost
 import com.nendo.argosy.ui.components.FooterHostController
 import com.nendo.argosy.ui.components.LocalFooterHost
+import com.nendo.argosy.ui.components.LocalFooterHostVisible
+import com.nendo.argosy.ui.components.isBarVisible
+import com.nendo.argosy.ui.components.LocalNavBarClearance
 import com.nendo.argosy.ui.components.LocalFrostedBackdrop
+import com.nendo.argosy.ui.components.frostedBackdropSource
 import com.nendo.argosy.ui.components.rememberFrostedBackdrop
 import com.nendo.argosy.ui.components.LocalTransientHomeStatusVisible
 import com.nendo.argosy.data.sync.ConflictResolution
@@ -93,6 +101,7 @@ import com.nendo.argosy.ui.input.LocalSwapStartSelect
 import com.nendo.argosy.ui.input.UiShortcut
 import com.nendo.argosy.ui.input.UiShortcutGate
 import com.nendo.argosy.core.input.SoundType
+import com.nendo.argosy.ui.navigation.NavBarVisibility
 import com.nendo.argosy.ui.navigation.NavGraph
 import com.nendo.argosy.ui.navigation.NavRing
 import com.nendo.argosy.ui.navigation.RouteRestore
@@ -163,7 +172,7 @@ fun ArgosyApp(
     val navRingState by viewModel.navRingState.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val activity = context as? com.nendo.argosy.MainActivity
+    val activity = context as? com.nendo.argosy.ArgosyActivity
     val dsm = remember { com.nendo.argosy.DualScreenManagerHolder.instance }
 
     val companionActive by dsm?.isCompanionActive?.collectAsState()
@@ -186,7 +195,7 @@ fun ArgosyApp(
     val isOnWizard = currentRoute == Screen.FirstRun.route
     var wasOnWizard by remember { mutableStateOf(isOnWizard) }
     LaunchedEffect(uiState.isFirstRun, isOnWizard) {
-        dsm?.broadcastWizardState(uiState.isFirstRun || isOnWizard)
+        dsm?.recordWizardState(uiState.isFirstRun || isOnWizard)
         if (wasOnWizard && !isOnWizard) {
             viewModel.triggerPostWizardSync()
         }
@@ -764,25 +773,11 @@ fun ArgosyApp(
     }
 
     LaunchedEffect(viewModel) {
-        viewModel.netplayInviteLaunch.collect { request ->
-            context.startActivity(request.intent, request.options)
-        }
-    }
-
-    LaunchedEffect(viewModel) {
         viewModel.coreCrashLaunch.collect { gameId ->
             navController.navigate(Screen.GameDetail.createRoute(gameId)) {
                 launchSingleTop = true
             }
             viewModel.initiateGameLaunch(gameId)
-        }
-    }
-
-    LaunchedEffect(netplayJoinState) {
-        val s = netplayJoinState
-        if (s is NetplayJoinState.LaunchReady) {
-            context.startActivity(s.intent, viewModel.launchOptionsFor(s.gameId))
-            viewModel.resetNetplayJoin()
         }
     }
 
@@ -1072,6 +1067,7 @@ fun ArgosyApp(
     }
 
     val frostedBackdrop = rememberFrostedBackdrop()
+    val screenFrostedBackdrop = rememberFrostedBackdrop()
     val hasCapturingOverlay = inputDispatcher.hasCapturingOverlay()
     LaunchedEffect(hasCapturingOverlay) {
         if (hasCapturingOverlay) viewModel.hideNavBar()
@@ -1084,6 +1080,7 @@ fun ArgosyApp(
         LocalXYIconsSwapped provides uiState.xyIconsSwapped,
         LocalSwapStartSelect provides uiState.swapStartSelect,
         LocalFooterHost provides footerHostController,
+        LocalFooterHostVisible provides (!presentationShowsHints && !navRingState.footerYieldsToBar),
         LocalFrostedBackdrop provides frostedBackdrop,
         com.nendo.argosy.ui.common.LocalImageCacheManager provides viewModel.imageCacheManager,
         com.nendo.argosy.ui.components.LocalArtworkScraping provides isScrapingArtwork,
@@ -1106,8 +1103,12 @@ fun ArgosyApp(
             dsm?.lastUserActivityAtMs
                 ?: remember { kotlinx.coroutines.flow.MutableStateFlow(0L) }
             ).collectAsState()
-        val dimmerEnabled = dsm != null &&
-            screenDimmerPrefs.enabled && !isEmulatorRunning && !uiState.isFirstRun
+        val mediaPlayback by (
+            dsm?.mediaPlayback
+                ?: remember { kotlinx.coroutines.flow.MutableStateFlow(null) }
+            ).collectAsState()
+        val dimmerEnabled = dsm != null && screenDimmerPrefs.enabled && !isEmulatorRunning &&
+            !uiState.isFirstRun && mediaPlayback == null
         val bottomReserved = gripReserveBottomInset()
 
         ScreenDimmerOverlay(
@@ -1145,9 +1146,21 @@ fun ArgosyApp(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
+                    .windowInsetsPadding(WindowInsets.systemBars)
                     .padding(bottom = bottomReserved)
-                    .revealOnBottomEdgeTouch(edgeHeight = Dimens.footerHeight) {
-                        if (currentNavBarAllowed) viewModel.showNavBar()
+                    .revealOnBottomEdgeTouch(edgeHeight = Dimens.footerHeight) { windowPosition ->
+                        val ringAtPress = viewModel.navRingState.value
+                        val pressOnFooterHint = footerHostController.hasTappableHintAt(windowPosition)
+                        val claimsPress = NavBarVisibility.revealClaimsPress(
+                            navBarAllowed = currentNavBarAllowed,
+                            barVisible = ringAtPress.isBarVisible,
+                            destinationCount = ringAtPress.destinations.size,
+                            pressOnFooterHint = pressOnFooterHint
+                        )
+                        if (NavBarVisibility.revealRaisesBar(currentNavBarAllowed, pressOnFooterHint)) {
+                            viewModel.showNavBar()
+                        }
+                        claimsPress
                     }
                     .onFocusChanged { keySinkFocused = it.isFocused }
                     .focusRequester(rootFocusRequester)
@@ -1228,22 +1241,45 @@ fun ArgosyApp(
                     animationSpec = androidx.compose.animation.core.tween(200),
                     label = "quickMenuBlur"
                 )
-                val contentBlur = maxOf(drawerBlur, quickMenuBlur)
+                val launchRecapBlur = com.nendo.argosy.ui.components.launchRecapBackdropBlur()
+                val monthlyRecapBlur = com.nendo.argosy.ui.components.recap.monthlyRecapBackdropBlur()
+                val contentBlur = maxOf(drawerBlur, quickMenuBlur, launchRecapBlur, monthlyRecapBlur)
 
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxSize()
                 ) {
+                    val monthlyRecapShowing = com.nendo.argosy.ui.components.recap.monthlyRecapShowing()
+                    val density = LocalDensity.current
+                    var navBarHeight by remember { mutableStateOf(0.dp) }
+                    val navBarHoldsSpace = navRingState.isAlwaysVisible && onRingDestination &&
+                        !homeAppBarOwnsBottom && !uiState.isFirstRun && navBarHeight > 0.dp
+                    val navBarClearance = if (navBarHoldsSpace) navBarHeight + Dimens.spacingSm else 0.dp
+                    val navBarLift by androidx.compose.animation.core.animateDpAsState(
+                        targetValue = if (
+                            navRingState.isAlwaysVisible && !presentationShowsHints && footerHostController.isBarVisible
+                        ) {
+                            Dimens.footerHeight
+                        } else {
+                            0.dp
+                        },
+                        animationSpec = tween(Motion.durationSlide),
+                        label = "navBarLift"
+                    )
                     CompositionLocalProvider(
                         LocalTransientHomeStatusVisible provides (
                             currentRoute == Screen.Home.route && maxWidth <= maxHeight &&
                                 !presentationShowsHints && navBarAllowed && navRingState.isBarVisible
-                            )
+                            ),
+                        LocalFrostedBackdrop provides screenFrostedBackdrop,
+                        LocalNavBarClearance provides navBarClearance
                     ) {
                         NavGraph(
                             navController = navController,
                             startDestination = startDestination,
                             onDrawerToggle = { if (isDrawerOpen) closeDrawer() else openDrawer() },
                             argosyViewModel = viewModel,
+                            videoPreviewBlocked = isDrawerOpen || isQuickSettingsOpen ||
+                                quickMenuState.isVisible || appPromptShowing || monthlyRecapShowing,
                             onPlayMedia = { itemId, startOver ->
                                 dsm?.playMediaItem(itemId, startOver)
                                     ?: PlayerActivity.start(
@@ -1254,7 +1290,9 @@ fun ArgosyApp(
                                         )
                                     )
                             },
-                            modifier = Modifier.blur(contentBlur)
+                            modifier = Modifier
+                                .frostedBackdropSource(frostedBackdrop)
+                                .blur(contentBlur)
                         )
                     }
 
@@ -1269,11 +1307,16 @@ fun ArgosyApp(
                         onInteract = { viewModel.showNavBar() },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = Dimens.spacingSm),
+                            .padding(bottom = Dimens.spacingSm + navBarLift)
+                            .onSizeChanged { size ->
+                                if (size.height > 0) navBarHeight = with(density) { size.height.toDp() }
+                            },
                         badgeFor = drawerUiState::badgeCountFor
                     )
                 }
             }
+
+            com.nendo.argosy.ui.components.recap.MonthlyRecapOverlay()
 
             com.nendo.argosy.ui.components.LaunchOverlay()
 
@@ -1432,14 +1475,14 @@ fun ArgosyApp(
             if (presentationShowsHints) {
                 val topEntry = footerHostController.top
                 val relayed = topEntry?.hints.orEmpty().map {
-                    com.nendo.argosy.ui.dualscreen.CompanionHint(it.button, it.action)
+                    com.nendo.argosy.ui.dualscreen.CompanionHint(it.button, it.action, forced = topEntry?.forced == true)
                 }
                 LaunchedEffect(relayed) {
                     com.nendo.argosy.DualScreenManagerHolder.instance?.publishControlHints(relayed)
                 }
             } else {
                 AnimatedVisibility(
-                    visible = !navRingState.isBarVisible,
+                    visible = !navRingState.footerYieldsToBar,
                     enter = slideInVertically(tween(Motion.durationSlide)) { it },
                     exit = slideOutVertically(tween(Motion.durationSlide)) { it },
                     modifier = Modifier.align(Alignment.BottomCenter)

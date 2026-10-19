@@ -83,6 +83,7 @@
     <string name="gamedetail_footer_view_reviews">समीक्षाएं पढ़ें</string>
     <string name="gamedetail_footer_open_related">खोलें</string>
     <string name="gamedetail_footer_back">वापस</string>
+    <string name="gamedetail_header_back_desc">वापस</string>
     <string name="gamedetail_footer_new_game">नया गेम</string>
     <string name="gamedetail_footer_shortcut_make_public">सार्वजनिक करें</string>
     <string name="gamedetail_footer_shortcut_make_private">निजी करें</string>
@@ -112,7 +113,7 @@
     <string name="gamedetail_chip_play_time_label">खेलने का समय</string>
 
     <string name="gamedetail_chip_rating_value">%1$d/10</string>
-    <string name="gamedetail_chip_rating_unset">सेट नहीं</string>
+    <string name="gamedetail_chip_rating_unset">N/A</string>
     <string name="gamedetail_chip_community_rating_value">%1$d%%</string>
 
     <string name="gamedetail_chip_play_time_minutes">%1$dm</string>
@@ -123,6 +124,7 @@
     <!-- ============================= Collapsed header bar ============================== -->
 
     <string name="gamedetail_collapsed_header_rating_percent">%1$d%%</string>
+    <string name="gamedetail_header_not_on_romm">RomM पर नहीं है</string>
     <plurals name="gamedetail_collapsed_header_play_count">
         <item quantity="one">%1$d बार</item>
         <item quantity="other">%1$d बार</item>
@@ -310,6 +312,7 @@
 
     <string name="gamedetail_emulator_picker_title">एमुलेटर चुनें</string>
     <string name="gamedetail_emulator_picker_platform_default">प्लेटफ़ॉर्म डिफ़ॉल्ट इस्तेमाल करें</string>
+    <string name="gamedetail_emulator_picker_builtin_core_build">%1$s (बिल्ड %2$s)</string>
 
     <string name="gamedetail_variant_picker_title">वैरिएंट चुनें</string>
     <string name="gamedetail_variant_picker_subtitle">कौन सा वर्शन लॉन्च करना है चुनें</string>
@@ -549,4 +552,20 @@
     <string name="reviews_editor_footer_submit">पोस्ट करें</string>
     <string name="reviews_editor_footer_delete">हटाएं</string>
     <string name="reviews_editor_footer_back">वापस</string>
+    <string name="gamedetail_per_game_backend_label">बैकएंड</string>
+    <string name="gamedetail_per_game_backend_inherit">इनहेरिट (%1$s)</string>
+    <string name="gamedetail_per_game_footer_gpu_driver_options">विकल्प</string>
+    <string name="gamedetail_per_game_gpu_driver_install">%1$s इंस्टॉल करें</string>
+    <string name="gamedetail_per_game_gpu_driver_installing">%1$s इंस्टॉल हो रहा है...</string>
+    <string name="gamedetail_per_game_gpu_driver_installed">%1$s इंस्टॉल हो गया</string>
+    <string name="gamedetail_per_game_gpu_driver_install_failed">%1$s इंस्टॉल नहीं हो सका</string>
+    <string name="gamedetail_per_game_gpu_driver_label">GPU ड्राइवर</string>
+    <string name="gamedetail_per_game_gpu_driver_inherit">इनहेरिट (%1$s)</string>
+    <string name="gamedetail_per_game_gpu_driver_system">सिस्टम ड्राइवर</string>
+    <string name="gamedetail_per_game_gpu_driver_missing">ड्राइवर नहीं मिला (सिस्टम ड्राइवर चालू)</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core">%1$s में समर्थित नहीं</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core_system_only">%1$s सिस्टम ड्राइवर इस्तेमाल करता है</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core_unknown">इस कोर</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_backend">बैकएंड Vulkan होने पर लागू होता है</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_device">कस्टम ड्राइवर के लिए Adreno GPU चाहिए</string>
 </resources>

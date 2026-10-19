@@ -43,10 +43,10 @@ class AppsRepository @Inject constructor(
 ) {
     private val packageManager: PackageManager = context.packageManager
 
-    val packageChanges: Flow<Unit> = callbackFlow {
+    val packageChanges: Flow<String> = callbackFlow {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                trySend(Unit)
+                intent?.data?.schemeSpecificPart?.let { trySend(it) }
             }
         }
 
@@ -63,6 +63,7 @@ class AppsRepository @Inject constructor(
             filter,
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
+        trySend("")
 
         awaitClose {
             context.unregisterReceiver(receiver)
@@ -115,7 +116,7 @@ class AppsRepository @Inject constructor(
      * is running on, which ends the session that opened the drawer. That is a reason to demote
      * them, not to make them unreachable.
      */
-    private fun isArgosy(packageName: String): Boolean =
+    fun isArgosy(packageName: String): Boolean =
         packageName == context.packageName ||
             packageName == ARGOSY_BASE_PACKAGE ||
             packageName.startsWith("$ARGOSY_BASE_PACKAGE.")

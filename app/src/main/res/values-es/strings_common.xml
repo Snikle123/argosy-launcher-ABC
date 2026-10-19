@@ -242,11 +242,11 @@
 
     <string name="ui_save_conflict_title">Conflicto de partida guardada</string>
     <string name="ui_save_conflict_default_slot">Partida guardada predeterminada</string>
-    <string name="ui_save_conflict_message">El servidor tiene una partida guardada más reciente. Sobrescribir la reemplazará con tu partida guardada local.</string>
+    <string name="ui_save_conflict_message">El servidor tiene una partida guardada más reciente. Al subir tu partida guardada local, pasa a ser la más reciente y se conserva la copia del servidor.</string>
     <string name="ui_save_conflict_source_local">Local</string>
     <string name="ui_save_conflict_source_server">Servidor</string>
     <string name="ui_save_conflict_skip">Omitir sincronización</string>
-    <string name="ui_save_conflict_overwrite">Sobrescribir</string>
+    <string name="ui_save_conflict_overwrite">Subir</string>
     <string name="ui_save_conflict_hardcore_title">¿Reemplazar una partida guardada hardcore?</string>
     <string name="ui_save_conflict_hardcore_message">La partida guardada actual de este canal se hizo en modo hardcore. Conservar esta partida guardada la reemplaza como actual. La partida guardada hardcore permanece en el historial.</string>
     <string name="ui_save_conflict_hardcore_replace">Reemplazar</string>
@@ -696,6 +696,63 @@
     <string name="ui_launch_overlay_cancel">Cancelar</string>
     <string name="ui_launch_overlay_cancel_option">Cancelar inicio</string>
     <string name="ui_launch_overlay_cancel_option_subtitle">Volver sin iniciar el juego</string>
+    <string name="ui_launch_overlay_launcher_choice_title">Elegir launcher</string>
+    <string name="ui_launch_overlay_launcher_choice_message">%1$s está instalado en más de un launcher. Fija uno con \"Cambiar launcher\" en la página del juego para no volver a ver esta pregunta.</string>
+    <string name="ui_launch_overlay_launcher_choice_option_subtitle">Iniciar el juego en %1$s</string>
+    <string name="ui_launch_overlay_step_loading_recap">Cargando tu última sesión</string>
+    <string name="ui_launch_recap_meta">Última sesión &#183; %1$s</string>
+    <string name="ui_launch_recap_meta_duration">Última sesión &#183; %1$s &#183; %2$s</string>
+    <plurals name="ui_launch_recap_meta_unlocked">
+        <item quantity="one">%1$s &#183; %2$d desbloqueado</item>
+        <item quantity="many">%1$s &#183; %2$d desbloqueados</item>
+        <item quantity="other">%1$s &#183; %2$d desbloqueados</item>
+    </plurals>
+    <string name="ui_launch_recap_presence_eyebrow">Donde lo dejaste</string>
+    <string name="ui_launch_recap_unlocks_section">Desbloqueados en la última sesión</string>
+    <string name="ui_launch_recap_start">Iniciar juego</string>
+    <plurals name="ui_launch_recap_points">
+        <item quantity="one">%d punto</item>
+        <item quantity="many">%d puntos</item>
+        <item quantity="other">%d puntos</item>
+    </plurals>
+    <string name="ui_launch_recap_tier_hardcore">Hardcore</string>
+    <string name="ui_launch_recap_tier_softcore">Softcore</string>
+    <string name="ui_launch_recap_type_progression">Progresión</string>
+    <string name="ui_launch_recap_type_win_condition">Condición de victoria</string>
+    <string name="ui_monthly_recap_eyebrow">Resumen mensual</string>
+    <string name="ui_monthly_recap_loading">Reuniendo lo que jugaste en %1$s</string>
+    <string name="ui_monthly_recap_empty">No jugaste a nada en %1$s</string>
+    <string name="ui_monthly_recap_failed">No se pudo cargar el resumen de %1$s</string>
+    <string name="ui_monthly_recap_hero_caption">jugado en %1$s</string>
+    <string name="ui_monthly_recap_most_played">Más jugado</string>
+    <string name="ui_monthly_recap_stat_sessions">Sesiones</string>
+    <string name="ui_monthly_recap_stat_days">Días jugados</string>
+    <string name="ui_monthly_recap_days_value">%1$d de %2$d</string>
+    <string name="ui_monthly_recap_stat_longest">Sesión más larga</string>
+    <string name="ui_monthly_recap_busiest_day">Día más activo: %1$s &#183; %2$s</string>
+    <string name="ui_monthly_recap_playtime_under_minute">&lt;1m</string>
+    <string name="ui_monthly_recap_top_games_heading">Juegos más jugados</string>
+    <string name="ui_monthly_recap_top_games_others">Otros juegos</string>
+    <string name="ui_monthly_recap_top_games_new">Nuevo</string>
+    <string name="ui_monthly_recap_share_percent">%1$d %%</string>
+    <string name="ui_monthly_recap_achievements_heading">Logros</string>
+    <plurals name="ui_monthly_recap_unlocked_count">
+        <item quantity="one">%d desbloqueado</item>
+        <item quantity="many">%d desbloqueados</item>
+        <item quantity="other">%d desbloqueados</item>
+    </plurals>
+    <plurals name="ui_monthly_recap_mastery_count">
+        <item quantity="one">%d dominado</item>
+        <item quantity="many">%d dominados</item>
+        <item quantity="other">%d dominados</item>
+    </plurals>
+    <string name="ui_monthly_recap_achievements_trailing">%1$s &#183; %2$s</string>
+    <string name="ui_monthly_recap_award_line">%1$s &#183; %2$s</string>
+    <string name="ui_monthly_recap_award_mastered">Dominado</string>
+    <string name="ui_monthly_recap_award_completed">Completado</string>
+    <string name="ui_monthly_recap_award_beaten_hardcore">Superado (Hardcore)</string>
+    <string name="ui_monthly_recap_award_beaten_softcore">Superado (Softcore)</string>
+    <string name="ui_monthly_recap_done">Listo</string>
     <string name="ui_sync_overlay_restore_failed_title">No se pudo restaurar la partida</string>
     <string name="ui_sync_overlay_restore_failed_message">Argosy no pudo restaurar la partida seleccionada de \"%1$s\".</string>
     <string name="ui_sync_overlay_restore_failed_launch">Iniciar sin sincronizar</string>
@@ -720,14 +777,14 @@
     <string name="ui_sync_overlay_post_session_title">Conflicto de partida guardada</string>
     <string name="ui_sync_overlay_post_session_subject">\"%1$s\" -- %2$s</string>
     <string name="ui_sync_overlay_post_session_default_slot">Partida guardada predeterminada</string>
-    <string name="ui_sync_overlay_post_session_message">El servidor tiene una partida guardada más reciente. Sobrescribir la reemplazará con tu partida guardada local.</string>
+    <string name="ui_sync_overlay_post_session_message">El servidor tiene una partida guardada más reciente. Al subir tu partida guardada local, pasa a ser la más reciente y se conserva la copia del servidor.</string>
     <string name="ui_sync_overlay_post_session_local">Local</string>
     <string name="ui_sync_overlay_post_session_server">Servidor</string>
     <string name="ui_sync_overlay_post_session_server_named">Servidor (%1$s)</string>
     <string name="ui_sync_overlay_post_session_skip">Omitir sincronización</string>
     <string name="ui_sync_overlay_post_session_skip_subtitle">Conservar tu partida guardada local, no subirla</string>
-    <string name="ui_sync_overlay_post_session_overwrite">Sobrescribir servidor</string>
-    <string name="ui_sync_overlay_post_session_overwrite_subtitle">Reemplazar la partida guardada del servidor con tu versión local</string>
+    <string name="ui_sync_overlay_post_session_overwrite">Subir partida local</string>
+    <string name="ui_sync_overlay_post_session_overwrite_subtitle">Tu partida guardada local pasa a ser la más reciente. Se conserva la copia del servidor.</string>
     <string name="ui_sync_overlay_legacy_status">Sincronizando...</string>
 
     <!-- Quick menu (ui/quickmenu) -->
@@ -772,10 +829,8 @@
     <string name="ui_file_browser_permission_footer_back">Atrás</string>
     <string name="ui_file_browser_error_unreadable">No se puede acceder al directorio</string>
     <string name="ui_file_browser_empty_folder">Carpeta vacía</string>
-    <string name="ui_file_browser_footer_select_file">Seleccionar archivo</string>
-    <string name="ui_file_browser_footer_select_file_or_folder">Seleccionar archivo</string>
-    <string name="ui_file_browser_footer_open_folder">Abrir</string>
-    <string name="ui_file_browser_footer_back">Atrás</string>
+    <string name="ui_file_browser_action_use_folder">Usar esta carpeta</string>
+    <string name="ui_file_browser_action_new_folder">Nueva carpeta</string>
     <string name="ui_file_browser_footer_new_folder">Nueva carpeta</string>
     <string name="ui_file_browser_footer_use_folder">Usar carpeta</string>
     <string name="ui_file_browser_new_folder_title">Nueva carpeta</string>

@@ -100,14 +100,26 @@
     <string name="settings_theme_backdrop_subtitle_off">Выкл</string>
     <string name="settings_theme_fonts_title">Шрифты</string>
     <string name="settings_theme_fonts_subtitle_default">По умолчанию</string>
+    <string name="settings_theme_icon_pack_title">Набор значков</string>
+    <string name="settings_theme_icon_pack_subtitle">Заменяет значки приложений установленным набором</string>
+    <string name="settings_theme_icon_pack_subtitle_none">Наборы значков не установлены</string>
+    <string name="settings_theme_icon_pack_system">Системные значки</string>
 
     <!-- ===== Interface section ===== -->
 
     <string name="settings_interface_ui_scale_title">Масштаб интерфейса</string>
     <string name="settings_interface_compact_footer_title">Компактная панель</string>
     <string name="settings_interface_compact_footer_subtitle">Использовать более тонкую панель подсказок</string>
+    <string name="settings_interface_hide_system_nav_bar_title">Скрывать системную панель навигации</string>
+    <string name="settings_interface_hide_system_nav_bar_subtitle">Скрывает кнопки Android «Назад», «Домой» и «Недавние» или панель жестов. Проведите от края экрана, чтобы показать их</string>
+    <string name="settings_interface_hide_system_status_bar_title">Скрывать системную строку состояния</string>
+    <string name="settings_interface_hide_system_status_bar_subtitle">Скрывает строку состояния Android и значки уведомлений. Проведите сверху вниз, чтобы показать её</string>
     <string name="settings_interface_lock_screen_art_title">Картинка экрана блокировки</string>
     <string name="settings_interface_lock_screen_art_subtitle">Пока Argosy — ваше приложение главного экрана, на экране блокировки показывается ваша библиотека или незакрытая игра. Заменяет обои экрана блокировки безвозвратно.</string>
+    <string name="settings_interface_home_app_title">Доступно как приложение главного экрана</string>
+    <string name="settings_interface_home_app_subtitle">Android сможет предлагать Argosy в качестве главного экрана. Samsung DeX открывает Argosy, только если этот параметр выключен.</string>
+    <string name="settings_interface_home_app_locked_value">Вкл.</string>
+    <string name="settings_interface_home_app_locked_subtitle">Argosy сейчас ваше приложение главного экрана. Чтобы выключить этот параметр, выберите другое приложение главного экрана в настройках Android.</string>
     <string name="settings_interface_controller_grip_title">Хват контроллера</string>
     <string name="settings_interface_controller_grip_subtitle">Сдвинуть интерфейс выше зоны, занимаемой хватом</string>
     <string name="settings_interface_home_screen_title">Главный экран</string>
@@ -127,6 +139,8 @@
     <string name="settings_navigation_nav_bar_pages_subtitle">Выберите и упорядочите страницы, между которыми переключают панель навигации и плечевые кнопки</string>
     <string name="settings_navigation_quick_navigation_title">Быстрая навигация</string>
     <string name="settings_navigation_quick_navigation_subtitle">Плечевые кнопки переключают страницы через панель навигации. Если выключено, они переключают платформы и вкладки, а курки переходят по буквам</string>
+    <string name="settings_navigation_nav_bar_auto_hide_title">Автоскрытие панели навигации</string>
+    <string name="settings_navigation_nav_bar_auto_hide_subtitle">Панель навигации скрывается через несколько секунд, уступая место подсказкам кнопок. Если выключено, она остаётся на экране</string>
     <string name="settings_navigation_nav_bar_pages_count">%1$d / %2$d</string>
     <string name="settings_nav_ring_modal_title">Страницы панели навигации</string>
     <string name="settings_nav_ring_modal_subtitle">Включайте и отключайте страницы и задавайте их порядок</string>
@@ -244,11 +258,50 @@
 
     <string name="settings_displays_screens_title">Расположение экранов</string>
     <string name="settings_displays_screens_subtitle">Назначьте задачу каждому подключённому экрану</string>
+    <string name="settings_displays_section_display_targets">Целевые экраны</string>
+    <string name="settings_displays_games_target_title">Игры</string>
+    <string name="settings_displays_apps_target_title">Приложения</string>
+    <string name="settings_displays_launch_target_value">%1$s (экран %2$d)</string>
+    <string name="settings_displays_launch_target_no_app_screen">Ни один экран не назначен экраном приложений. Откроется на: %1$s.</string>
+    <string name="settings_displays_by_platform_and_app_title">По платформам и приложениям</string>
+    <string name="settings_displays_by_platform_and_app_none">Всё следует этим настройкам по умолчанию</string>
+    <plurals name="settings_displays_by_platform_and_app_count">
+        <item quantity="one">%d с отдельной настройкой</item>
+        <item quantity="few">%d с отдельной настройкой</item>
+        <item quantity="many">%d с отдельной настройкой</item>
+        <item quantity="other">%d с отдельной настройкой</item>
+    </plurals>
+    <string name="settings_launch_targets_title">Целевые экраны</string>
+    <string name="settings_launch_targets_intro">Сгруппировано по экрану, на котором каждый пункт открывается сейчас.</string>
+    <string name="settings_launch_targets_rail">%1$s (экран %2$d)</string>
+    <string name="settings_launch_targets_heading_description">Экран %1$d, %2$s</string>
+    <string name="settings_launch_targets_this_screen">Этот экран</string>
+    <string name="settings_launch_targets_platforms">Платформы</string>
+    <string name="settings_launch_targets_apps">Приложения</string>
+    <string name="settings_launch_targets_tag_default">По умолчанию</string>
+    <string name="settings_launch_targets_tag_set">Задано</string>
+    <string name="settings_launch_targets_platform_set">Следует за ролью: %1$s</string>
+    <string name="settings_launch_targets_app_set">Остаётся на экране %1$d</string>
+    <string name="settings_launch_targets_app_missing">Его экран не подключён</string>
+    <string name="settings_launch_targets_app_off">Экран %1$d выключен</string>
+    <plurals name="settings_launch_targets_platform_game_overrides">
+        <item quantity="one">%d игра с отдельной настройкой</item>
+        <item quantity="few">%d игры с отдельной настройкой</item>
+        <item quantity="many">%d игр с отдельной настройкой</item>
+        <item quantity="other">%d игры с отдельной настройкой</item>
+    </plurals>
+    <string name="settings_launch_targets_empty">Здесь ничего не открывается</string>
+    <string name="settings_launch_targets_loading_apps">Поиск приложений</string>
+    <string name="settings_launch_targets_use_default_role">По умолчанию (%1$s)</string>
+    <string name="settings_launch_targets_use_default_screen">По умолчанию (экран %1$d)</string>
+    <string name="settings_launch_targets_option_role">%1$s (экран %2$d)</string>
+    <string name="settings_launch_targets_option_screen">Экран %1$d (%2$s)</string>
     <string name="settings_interface_presentation_title">Презентация</string>
     <string name="settings_interface_presentation_subtitle">Как другой экран показывает выбранную игру</string>
     <string name="settings_interface_section_general">Общие</string>
     <string name="settings_interface_section_screens">Экраны</string>
     <string name="settings_interface_section_status_bar">Строка состояния</string>
+    <string name="settings_interface_section_recaps">Итоги</string>
     <string name="settings_presentation_layout_title">Макет</string>
     <string name="settings_presentation_layout_cinematic">Кино</string>
     <string name="settings_presentation_layout_journal">Дневник</string>
@@ -262,6 +315,7 @@
     <string name="settings_presentation_scrim_blur">Размытие</string>
     <string name="settings_presentation_scrim_none">Нет</string>
     <string name="settings_presentation_scrim_strength_title">Сила затемнения</string>
+    <string name="settings_presentation_background_blur_title">Размытие фона</string>
     <string name="settings_presentation_art_title">Обложка</string>
     <string name="settings_presentation_art_cover">Обложка</string>
     <string name="settings_presentation_art_box_3d">3D-коробка</string>
@@ -285,7 +339,7 @@
     <string name="settings_screens_role_presentation">Показ</string>
     <string name="settings_screens_role_presentation_detail">Показывает то, что вы смотрите, без элементов управления</string>
     <string name="settings_screens_role_app_target">Экран приложений</string>
-    <string name="settings_screens_role_app_target_detail">Запущенные приложения открываются здесь</string>
+    <string name="settings_screens_role_app_target_detail">Игры и приложения, отправленные сюда, открываются здесь без лаунчера</string>
     <string name="settings_screens_role_off">Выключен</string>
     <string name="settings_screens_role_off_detail">Argosy ничего не выводит на этот экран</string>
     <string name="settings_displays_ambient_led_title">Управление LED</string>
@@ -323,6 +377,10 @@
     <string name="settings_interface_status_battery_subtitle">Показывать уровень заряда в строке состояния</string>
     <string name="settings_interface_status_network_title">Сеть</string>
     <string name="settings_interface_status_network_subtitle">Показывать текущее подключение в строке состояния</string>
+    <string name="settings_interface_pre_launch_recaps_title">Итоги перед запуском</string>
+    <string name="settings_interface_pre_launch_recaps_subtitle">Перед игрой RetroAchievements, в которую вы не играли неделю, показывать, на чём вы остановились</string>
+    <string name="settings_interface_monthly_recap_title">Итоги месяца</string>
+    <string name="settings_interface_monthly_recap_subtitle">В начале каждого месяца показывать на главном экране сводку за прошлый месяц</string>
 
     <string name="settings_home_screen_background_title">Фон</string>
     <string name="settings_home_screen_background_subtitle">Арт игры или фоновый узор</string>
@@ -457,6 +515,27 @@
     <string name="settings_ra_logout_title">Выйти</string>
     <string name="settings_ra_logout_title_busy">Выход...</string>
     <string name="settings_ra_logout_subtitle">Выйти из RetroAchievements</string>
+    <string name="settings_ra_web_api_key_title">Ключ веб-API (необязательно)</string>
+    <string name="settings_ra_web_api_key_subtitle">Находится в разделе Keys панели управления RetroAchievements. Делает итоги быстрее и подробнее.</string>
+    <string name="settings_ra_web_api_key_value_not_set">Не задан</string>
+    <string name="settings_ra_web_api_key_value_saved_short">Сохранён</string>
+    <string name="settings_ra_web_api_key_value_rejected">Ключ отклонён</string>
+    <string name="settings_ra_web_api_key_modal_title">Ключ веб-API RetroAchievements</string>
+    <string name="settings_ra_web_api_key_modal_message">Скопируйте ключ веб-API из раздела Keys панели управления RetroAchievements и вставьте его сюда. Argosy один раз проверит его перед сохранением.</string>
+    <string name="settings_ra_web_api_key_field_label">Ключ веб-API</string>
+    <string name="settings_ra_web_api_key_paste">Вставить</string>
+    <string name="settings_ra_web_api_key_clear">Удалить</string>
+    <string name="settings_ra_web_api_key_cancel">Отмена</string>
+    <string name="settings_ra_web_api_key_save">Сохранить</string>
+    <string name="settings_ra_web_api_key_save_busy">Проверка...</string>
+    <string name="settings_ra_web_api_key_status_validating">Проверка ключа в RetroAchievements...</string>
+    <string name="settings_ra_web_api_key_status_rejected">RetroAchievements не принял этот ключ.</string>
+    <string name="settings_ra_web_api_key_status_unreachable">Не удалось связаться с RetroAchievements. Попробуйте ещё раз.</string>
+    <string name="settings_ra_web_api_key_status_clipboard_empty">В буфере обмена нет текста.</string>
+    <string name="settings_ra_web_api_key_saved_title">Ключ веб-API сохранён</string>
+    <string name="settings_ra_web_api_key_saved_subtitle">Итоги теперь читают RetroAchievements напрямую.</string>
+    <string name="settings_ra_web_api_key_cleared_title">Ключ веб-API удалён</string>
+    <string name="settings_ra_web_api_key_cleared_subtitle">Ключ больше не хранится на этом устройстве.</string>
 
     <string name="settings_ra_play_mode_title">Предпочитаемый режим игры</string>
     <string name="settings_ra_play_mode_subtitle_locked">Требуются защищённые сохранения</string>
@@ -1422,9 +1501,11 @@
     <string name="settings_builtin_architecture_title">Архитектура</string>
 
     <string name="settings_builtin_video_title">A/V и производительность</string>
-    <string name="settings_builtin_video_subtitle">Шейдеры, экран, производительность, сохранение</string>
+    <string name="settings_builtin_video_subtitle">Шейдеры, экран, производительность</string>
     <string name="settings_builtin_controls_title">Управление</string>
     <string name="settings_builtin_controls_subtitle">Вибрация, раскладка кнопок, горячие клавиши</string>
+    <string name="settings_builtin_saves_title">Сохранения</string>
+    <string name="settings_builtin_saves_subtitle">Состояния, сохранения на сервере, папки</string>
 
     <string name="settings_builtin_cores_title">Управление ядрами</string>
     <string name="settings_builtin_cores_subtitle">Установлено %1$d из %2$d ядер</string>
@@ -1694,6 +1775,7 @@
     <string name="settings_platform_extension_default">По умолчанию</string>
     <string name="settings_platform_display_target_title">Целевой экран</string>
     <string name="settings_platform_display_target_default">По умолчанию</string>
+    <string name="settings_platform_display_target_default_resolved">По умолчанию (%1$s)</string>
     <string name="settings_platform_display_target_presentation">Экран показа</string>
     <string name="settings_platform_display_target_primary">Основной экран</string>
     <string name="settings_platform_display_target_app_screen">Экран приложений</string>
@@ -1702,9 +1784,11 @@
     <string name="settings_platform_launch_args_title">Параметры запуска</string>
     <string name="settings_platform_launch_args_subtitle">Настроить, как Argosy запускает этот эмулятор</string>
     <string name="settings_platform_builtin_video_title">Встроенные A/V и производительность</string>
-    <string name="settings_platform_builtin_video_subtitle">Переопределения экрана, производительности и сохранения</string>
+    <string name="settings_platform_builtin_video_subtitle">Переопределения экрана и производительности</string>
     <string name="settings_platform_builtin_controls_title">Встроенное управление</string>
     <string name="settings_platform_builtin_controls_subtitle">Переопределения вибрации и раскладки стиков</string>
+    <string name="settings_platform_builtin_saves_title">Встроенные сохранения</string>
+    <string name="settings_platform_builtin_saves_subtitle">Переопределения состояний и папок</string>
     <string name="settings_platform_core_options_title">Настройки ядра</string>
     <string name="settings_platform_core_options_subtitle">Настройки ядра для этой платформы</string>
 
@@ -1821,8 +1905,8 @@
 
     <!-- ===== GameNative folders panel ===== -->
 
-    <string name="settings_gamenative_folders_title">Папки GameNative</string>
-    <string name="settings_gamenative_folders_subtitle">Укажите для каждого магазина папку, куда GameNative экспортирует свои установки. Steam только отмечает купленные игры как установленные; остальные магазины добавляют и удаляют свои игры в соответствии с папкой.</string>
+    <string name="settings_gamenative_folders_title">Папки синхронизации лаунчеров</string>
+    <string name="settings_gamenative_folders_subtitle">Укажите для каждого магазина папку, куда GameNative экспортирует свои установки, а для DroidDeck - его папку файлов игр. Steam только отмечает купленные игры как установленные; остальные магазины добавляют и удаляют свои игры в соответствии с папкой.</string>
     <string name="settings_gamenative_folders_hint_set">Задать / Очистить</string>
     <string name="settings_gamenative_folders_hint_select">Выбрать</string>
     <string name="settings_gamenative_folders_hint_back">Назад</string>
@@ -2128,6 +2212,7 @@
     <string name="settings_emulator_picker_version_unknown">?</string>
     <string name="settings_emulator_picker_version_update_arrow">%1$s -&gt; %2$s</string>
     <string name="settings_emulator_picker_installed_label">Установлено</string>
+    <string name="settings_emulator_picker_builtin_core_build">%1$s (сборка от %2$s)</string>
     <string name="settings_emulator_picker_download_header">ДОСТУПНО ДЛЯ ЗАГРУЗКИ</string>
     <string name="settings_emulator_picker_downloadable_downloading_progress">Загрузка %1$d%%</string>
     <string name="settings_emulator_picker_downloadable_installing">Установка...</string>
@@ -2215,13 +2300,12 @@
     <!-- ===== Controller order modal (Settings > components > ControllerOrderModal) ===== -->
 
     <string name="settings_controller_order_title">Порядок контроллеров</string>
-    <string name="settings_controller_order_subtitle">Нажмите любую кнопку, чтобы назначить контроллер</string>
-    <string name="settings_controller_order_hint_confirm">Подтвердить</string>
-    <string name="settings_controller_order_hint_unregister_back">Отменить/Назад</string>
+    <string name="settings_controller_order_subtitle">Нажмите кнопку на контроллере, чтобы найти его.</string>
+    <string name="settings_controller_order_hint_clear_all">Очистить все</string>
     <string name="settings_controller_order_default_name">Контроллер</string>
     <string name="settings_controller_order_slot_label">P%1$d</string>
-    <string name="settings_controller_order_slot_pressing">Нажмите...</string>
-    <string name="settings_controller_order_slot_empty">Пусто</string>
+    <string name="settings_controller_order_seat_none">Нет</string>
+    <string name="settings_controller_order_empty">Контроллеры не подключены</string>
 
     <!-- ===== Grip controller modal (Settings > components > GripControllerModal) ===== -->
 
@@ -2571,6 +2655,8 @@
     <string name="settings_play_time_section_where">УСТРОЙСТВА</string>
     <string name="settings_play_time_section_what">ВО ЧТО ВЫ ИГРАЕТЕ</string>
     <string name="settings_play_time_section_facts">КОРОТКО О ГЛАВНОМ</string>
+    <string name="settings_play_time_last_month_title">Итоги прошлого месяца</string>
+    <string name="settings_play_time_last_month_subtitle">Время в игре, новые любимые игры и достижения за прошлый месяц</string>
     <string name="settings_play_time_loading_title">Чтение сессий...</string>
     <string name="settings_play_time_loading_message">Ваши игровые привычки появятся через мгновение.</string>
     <string name="settings_play_time_empty_title">Игровых сессий пока нет</string>
@@ -2724,4 +2810,21 @@
     <string name="settings_play_time_platforms_list_empty">Ни на одной платформе пока нет игры.</string>
     <string name="settings_play_time_devices_list_empty">Ни на одном устройстве пока нет игры.</string>
     <string name="settings_play_time_games_list_empty">Ни в одну игру пока не играли.</string>
+    <string name="settings_builtin_graphics_header">Графика</string>
+    <string name="settings_builtin_graphics_backend_title">Рендерер</string>
+    <string name="settings_builtin_graphics_backend_core_subtitle">Параметр %1$s, общий для всех платформ с этим ядром</string>
+    <string name="settings_builtin_graphics_backend_platform_subtitle">Рендерер %1$s на этой платформе</string>
+    <string name="settings_builtin_gpu_driver_title">Драйвер GPU</string>
+    <string name="settings_builtin_gpu_driver_subtitle">Драйвер Vulkan для встроенных ядер</string>
+    <string name="settings_builtin_gpu_driver_global_hint">Общее: %1$s</string>
+    <string name="settings_builtin_gpu_driver_system">Системный драйвер</string>
+    <string name="settings_builtin_gpu_driver_missing">Драйвер не найден (используется системный)</string>
+    <string name="settings_builtin_gpu_driver_install">Установить %1$s</string>
+    <string name="settings_builtin_gpu_driver_installing">Установка %1$s...</string>
+    <string name="settings_builtin_gpu_driver_installed">%1$s установлен</string>
+    <string name="settings_builtin_gpu_driver_install_failed">Не удалось установить %1$s</string>
+    <string name="settings_builtin_gpu_driver_reason_core_unsupported">Не поддерживается в %1$s</string>
+    <string name="settings_builtin_gpu_driver_reason_core_system_only">%1$s использует системный драйвер</string>
+    <string name="settings_builtin_gpu_driver_reason_backend">Действует, когда рендерер Vulkan</string>
+    <string name="settings_builtin_gpu_driver_reason_device">Свои драйверы требуют GPU Adreno</string>
 </resources>

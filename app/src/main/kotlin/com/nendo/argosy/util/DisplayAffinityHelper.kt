@@ -43,26 +43,48 @@ class DisplayAffinityHelper @Inject constructor(
      */
     var appTargetDisplayId: Int? = null
 
+    /**
+     * Displays the stored screen layout turns off. An app pinned to one of them launches where
+     * the Apps default puts it.
+     */
+    var offDisplayIds: Set<Int> = emptySet()
+
+    /**
+     * The display the launcher window sits on while Samsung DeX is active, or null outside DeX.
+     * The launcher pushes it on creation and on every configuration change. While set, the
+     * launcher, the games and the apps all run on that one display, and no dual-screen surface
+     * is raised.
+     */
+    var desktopModeDisplayId: Int? = null
+
+    val isDesktopMode: Boolean
+        get() = desktopModeDisplayId != null
+
     private val resolvedAppTarget: Int?
-        get() = appTargetDisplayId?.takeIf { id -> physicalDisplays.any { it.displayId == id } }
+        get() = appTargetDisplayId?.takeIf { id ->
+            !isDesktopMode && physicalDisplays.any { it.displayId == id }
+        }
 
     /**
      * The television or monitor while the handheld's own panels are switched off beside it, as
      * a dock does when the device is set to blank its screens on video output. The launcher, the
-     * games and the apps all run there until the panels light again.
+     * games and the apps all run there until the panels light again. Never set under DeX.
      */
     val dockedDisplayId: Int?
-        get() = dockedExternalDisplayId(context)
+        get() = if (isDesktopMode) null else dockedExternalDisplayId(context)
 
     val isDockedDark: Boolean
         get() = dockedDisplayId != null
 
     val hasSecondaryDisplay: Boolean
-        get() = if (isDockedDark) {
-            secondaryDisplayUsable
-        } else {
-            dualScreenEnabled && secondaryDisplayUsable && hasPhysicalSecondaryDisplay
+        get() = when {
+            isDesktopMode -> false
+            isDockedDark -> secondaryDisplayUsable
+            else -> dualScreenEnabled && secondaryDisplayUsable && hasPhysicalSecondaryDisplay
         }
+
+    private val singleSurfaceDisplayId: Int?
+        get() = desktopModeDisplayId ?: dockedDisplayId
 
     val secondaryDisplayType: SecondaryDisplayType
         get() {
@@ -146,27 +168,38 @@ class DisplayAffinityHelper @Inject constructor(
      * Where an app, a video or anything else that is not a game belongs. [preferredScreenKey] is
      * the screen this app is pinned to, keyed as the stored screen layout keys it, and
      * [occupiedDisplayId] names a screen a game holds. Either one being absent passes it over for
-     * this launch alone.
+     * this launch alone. [defaultTarget] is the global Apps target, consulted after the pin.
      */
     fun appLaunchDisplayId(
         preferredScreenKey: String? = null,
         rolesSwapped: Boolean = false,
-        occupiedDisplayId: Int? = null
-    ): Int? = dockedDisplayId ?: resolveAppLaunchDisplayId(
-        preferredDisplayId = preferredScreenKey?.let { key ->
-            screenCatalog.attachedScreens().find { it.key == key }?.displayId
-        },
-        appTargetDisplayId = resolvedAppTarget,
-        roleDisplayIds = getRoleDisplayIds(rolesSwapped),
-        occupiedDisplayId = occupiedDisplayId
-    )
+        occupiedDisplayId: Int? = null,
+        defaultTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.DEFAULT
+    ): Int? {
+        singleSurfaceDisplayId?.let { return it }
+        val roles = getRoleDisplayIds(rolesSwapped)
+        return resolveAppLaunchDisplayId(
+            preferredDisplayId = preferredScreenKey?.let { key ->
+                screenCatalog.attachedScreens().find { it.key == key }?.displayId
+            }?.takeUnless { it in offDisplayIds },
+            defaultDisplayId = resolveAppDefaultDisplayId(
+                target = defaultTarget,
+                roleDisplayIds = roles,
+                appScreenDisplayId = appScreenDisplayId(rolesSwapped)
+            ),
+            appTargetDisplayId = resolvedAppTarget,
+            roleDisplayIds = roles,
+            occupiedDisplayId = occupiedDisplayId
+        )
+    }
 
     fun getAppLaunchOptions(
         preferredScreenKey: String? = null,
         rolesSwapped: Boolean = false,
-        occupiedDisplayId: Int? = null
+        occupiedDisplayId: Int? = null,
+        defaultTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.DEFAULT
     ): Bundle? {
-        val displayId = appLaunchDisplayId(preferredScreenKey, rolesSwapped, occupiedDisplayId)
+        val displayId = appLaunchDisplayId(preferredScreenKey, rolesSwapped, occupiedDisplayId, defaultTarget)
             ?: return null
         return ActivityOptions.makeBasic()
             .setLaunchDisplayId(displayId)
@@ -178,7 +211,7 @@ class DisplayAffinityHelper @Inject constructor(
      * and the launch should be placed the way it is on a device with two screens.
      */
     fun getDisplayTargetId(target: EmulatorDisplayTarget, rolesSwapped: Boolean): Int? =
-        dockedDisplayId ?: resolveDisplayTargetId(
+        singleSurfaceDisplayId ?: resolveDisplayTargetId(
             target = target,
             roleDisplayIds = getRoleDisplayIds(rolesSwapped),
             appScreenDisplayId = appScreenDisplayId(rolesSwapped)
@@ -194,7 +227,7 @@ class DisplayAffinityHelper @Inject constructor(
      * and keeps landing correctly after a swap.
      */
     fun getRoleDisplayIds(rolesSwapped: Boolean): Pair<Int, Int>? =
-        dockedDisplayId?.let { it to it }
+        singleSurfaceDisplayId?.let { it to it }
             ?: resolveRoleDisplayIds(roleDisplayIds, attachedIds, secondaryDisplayId, rolesSwapped)
 
     /**
@@ -221,6 +254,9 @@ class DisplayAffinityHelper @Inject constructor(
         return context.createDisplayContext(display)
     }
 
+    fun screenNumbersByDisplayId(): Map<Int, Int> =
+        screenCatalog.attachedScreens().associate { it.displayId to it.number }
+
     fun isBuiltInDisplay(displayId: Int): Boolean =
         screenCatalog.attachedScreens().any { it.displayId == displayId && it.builtIn }
 
@@ -229,7 +265,9 @@ class DisplayAffinityHelper @Inject constructor(
         rolesSwapped: Boolean = false,
         overrideDisplayId: Int? = null
     ): Bundle? {
-        if (overrideDisplayId == null && !hasSecondaryDisplay && (forEmulator || resolvedAppTarget == null)) {
+        if (overrideDisplayId == null && !isDesktopMode && !hasSecondaryDisplay &&
+            (forEmulator || resolvedAppTarget == null)
+        ) {
             return null
         }
 
@@ -274,17 +312,24 @@ class DisplayAffinityHelper @Inject constructor(
          * The lit external display while the built-in panels are dark beside it, or null. Dark
          * means every panel reports [Display.STATE_OFF], or the firmware has blanked their
          * backlights for video output while Android still reports them on. A sleeping device
-         * darkens the external display too, so sleep never reads as docked.
+         * darkens the external display too, so sleep never reads as docked, and neither does a
+         * Samsung DeX monitor.
          */
-        fun dockedExternalDisplayId(context: Context): Int? = dockedExternalDisplayId(
-            displayManager = context.getSystemService(DisplayManager::class.java),
-            firmwareBlanksPanels = firmwareBlanksPanels(context)
-        )
+        fun dockedExternalDisplayId(context: Context): Int? {
+            val desktopMode = DesktopMode.isActive(context)
+            return dockedExternalDisplayId(
+                displayManager = context.getSystemService(DisplayManager::class.java),
+                firmwareBlanksPanels = !desktopMode && firmwareBlanksPanels(context),
+                desktopMode = desktopMode
+            )
+        }
 
         internal fun dockedExternalDisplayId(
             displayManager: DisplayManager,
-            firmwareBlanksPanels: Boolean
+            firmwareBlanksPanels: Boolean,
+            desktopMode: Boolean
         ): Int? {
+            if (desktopMode) return null
             val displays = displayManager.displays
             val panels = displays.filter {
                 it.displayId == Display.DEFAULT_DISPLAY || it.displayType() == DISPLAY_TYPE_BUILT_IN
@@ -324,12 +369,8 @@ class DisplayAffinityHelper @Inject constructor(
             Display::class.java.getMethod("getType").invoke(this) as? Int
         } catch (_: Exception) { null }
 
-        private fun Display.isPhysicalDisplay(): Boolean {
-            if (state == Display.STATE_OFF) return false
-            val type = displayType()
-            if (type != null) return type == DISPLAY_TYPE_BUILT_IN || type == DISPLAY_TYPE_EXTERNAL
-            return flags and Display.FLAG_PRIVATE == 0
-        }
+        private fun Display.isPhysicalDisplay(): Boolean =
+            state != Display.STATE_OFF && ScreenCatalog.isScreen(this)
 
         /**
          * The display carrying the companion surface: the role holder that is not the default
@@ -367,19 +408,26 @@ class DisplayAffinityHelper @Inject constructor(
             }
         }
 
-        /**
-         * Where an app lands, best screen first: the one it is pinned to, the app-target role, the
-         * presentation screen, then the interactive one. [occupiedDisplayId] names a screen a game
-         * holds, which moves the launch down the list and never off it.
-         */
+        internal fun resolveAppDefaultDisplayId(
+            target: EmulatorDisplayTarget,
+            roleDisplayIds: Pair<Int, Int>?,
+            appScreenDisplayId: Int?
+        ): Int? = resolveDisplayTargetId(
+            target = if (target == EmulatorDisplayTarget.DEFAULT) EmulatorDisplayTarget.APP_SCREEN else target,
+            roleDisplayIds = roleDisplayIds,
+            appScreenDisplayId = appScreenDisplayId
+        )
+
         internal fun resolveAppLaunchDisplayId(
             preferredDisplayId: Int?,
+            defaultDisplayId: Int?,
             appTargetDisplayId: Int?,
             roleDisplayIds: Pair<Int, Int>?,
             occupiedDisplayId: Int?
         ): Int? {
             val candidates = listOfNotNull(
                 preferredDisplayId,
+                defaultDisplayId,
                 appTargetDisplayId,
                 roleDisplayIds?.second,
                 roleDisplayIds?.first
@@ -420,5 +468,14 @@ class DisplayAffinityHelper @Inject constructor(
                 secondary to Display.DEFAULT_DISPLAY
             }
         }
+
+        internal fun rolesSwappedForPrimary(primaryDisplayId: Int): Boolean =
+            primaryDisplayId == Display.DEFAULT_DISPLAY
+
+        internal fun rolesSwappedFor(
+            layout: com.nendo.argosy.domain.model.ScreenLayout,
+            attached: List<AttachedScreen>
+        ): Boolean? = attached.find { it.key == layout.primaryKey }
+            ?.let { rolesSwappedForPrimary(it.displayId) }
     }
 }

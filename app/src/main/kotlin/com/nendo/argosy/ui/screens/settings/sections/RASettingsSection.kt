@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Icon
@@ -46,12 +47,20 @@ import com.nendo.argosy.ui.components.ActionPreference
 import com.nendo.argosy.ui.components.CyclePreference
 import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.components.SwitchPreference
+import com.nendo.argosy.ui.screens.settings.RA_LOGGED_IN_LOGOUT_INDEX
+import com.nendo.argosy.ui.screens.settings.RA_LOGGED_IN_PLAY_MODE_INDEX
+import com.nendo.argosy.ui.screens.settings.RA_LOGGED_IN_PROXY_FIELD_INDEX
+import com.nendo.argosy.ui.screens.settings.RA_LOGGED_IN_PROXY_TOGGLE_INDEX
+import com.nendo.argosy.ui.screens.settings.RA_LOGGED_IN_WEB_API_KEY_INDEX
 import com.nendo.argosy.ui.screens.settings.RA_PROXY_FIELD_INDEX
 import com.nendo.argosy.ui.screens.settings.RA_PROXY_TOGGLE_INDEX
 import com.nendo.argosy.ui.screens.settings.RASettingsState
+import com.nendo.argosy.ui.screens.settings.raLoggedInPushIndex
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
 import com.nendo.argosy.ui.screens.settings.SettingsViewModel
+import com.nendo.argosy.ui.screens.settings.components.LocalSettingsTouchFocus
 import com.nendo.argosy.ui.screens.settings.components.SectionHeader
+import com.nendo.argosy.ui.screens.settings.components.settingsRowItem
 import com.nendo.argosy.ui.theme.ALauncherColors
 import com.nendo.argosy.ui.theme.Dimens
 import com.nendo.argosy.ui.theme.LocalArgosyTheme
@@ -67,7 +76,8 @@ fun RASettingsSection(
 
     FocusedScroll(
         listState = listState,
-        focusedIndex = uiState.focusedIndex
+        focusedIndex = uiState.focusedIndex,
+        isTouchMode = LocalSettingsTouchFocus.current.isTouchMode
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -183,7 +193,7 @@ private fun RALoggedInContent(
             Spacer(modifier = Modifier.height(Dimens.spacingMd))
             SectionHeader(stringResource(R.string.settings_ra_section_account))
         }
-        item {
+        settingsRowItem(focusIndex = RA_LOGGED_IN_LOGOUT_INDEX) {
             ActionPreference(
                 icon = Icons.AutoMirrored.Filled.Logout,
                 title = if (raState.isLoggingOut) {
@@ -192,17 +202,33 @@ private fun RALoggedInContent(
                     stringResource(R.string.settings_ra_logout_title)
                 },
                 subtitle = stringResource(R.string.settings_ra_logout_subtitle),
-                isFocused = focusedIndex == 0,
+                isFocused = focusedIndex == RA_LOGGED_IN_LOGOUT_INDEX,
                 onClick = { viewModel.logoutFromRA() }
             )
         }
+        settingsRowItem(focusIndex = RA_LOGGED_IN_WEB_API_KEY_INDEX) {
+            ActionPreference(
+                icon = Icons.Default.Key,
+                title = stringResource(R.string.settings_ra_web_api_key_title),
+                subtitle = stringResource(R.string.settings_ra_web_api_key_subtitle),
+                trailingText = when {
+                    !raState.hasWebApiKey -> stringResource(R.string.settings_ra_web_api_key_value_not_set)
+                    raState.webApiKeyRejected -> stringResource(R.string.settings_ra_web_api_key_value_rejected)
+                    raState.webApiKeySuffix != null ->
+                        stringResource(R.string.settings_ra_web_api_key_value_saved, raState.webApiKeySuffix)
+                    else -> stringResource(R.string.settings_ra_web_api_key_value_saved_short)
+                },
+                isFocused = focusedIndex == RA_LOGGED_IN_WEB_API_KEY_INDEX,
+                onClick = { viewModel.openRAWebApiKeyEditor() }
+            )
+        }
 
-        item {
+        settingsRowItem(focusIndex = RA_LOGGED_IN_PLAY_MODE_INDEX) {
             if (!secureSaves) {
                 ActionPreference(
                     title = stringResource(R.string.settings_ra_play_mode_title),
                     subtitle = stringResource(R.string.settings_ra_play_mode_subtitle_locked),
-                    isFocused = focusedIndex == 1,
+                    isFocused = focusedIndex == RA_LOGGED_IN_PLAY_MODE_INDEX,
                     isEnabled = false,
                     onClick = {}
                 )
@@ -221,7 +247,7 @@ private fun RALoggedInContent(
                 CyclePreference(
                     title = stringResource(R.string.settings_ra_play_mode_title),
                     value = currentLabel,
-                    isFocused = focusedIndex == 1,
+                    isFocused = focusedIndex == RA_LOGGED_IN_PLAY_MODE_INDEX,
                     onClick = { viewModel.cycleRADefaultMode(1) },
                     onPrev = { viewModel.cycleRADefaultMode(-1) },
                     options = cycleOptions,
@@ -239,15 +265,21 @@ private fun RALoggedInContent(
             }
         }
 
-        raProxyItems(raState, focusedIndex, viewModel, proxyToggleIndex = 2, proxyFieldIndex = 3)
+        raProxyItems(
+            raState,
+            focusedIndex,
+            viewModel,
+            proxyToggleIndex = RA_LOGGED_IN_PROXY_TOGGLE_INDEX,
+            proxyFieldIndex = RA_LOGGED_IN_PROXY_FIELD_INDEX
+        )
 
         if (raState.canPushToRetroArch) {
             item {
                 Spacer(modifier = Modifier.height(Dimens.spacingMd))
                 SectionHeader(stringResource(R.string.settings_ra_section_retroarch))
             }
-            item {
-                val pushIndex = if (raState.proxyEnabled) 4 else 3
+            val pushIndex = raLoggedInPushIndex(raState.proxyEnabled)
+            settingsRowItem(focusIndex = pushIndex) {
                 ActionPreference(
                     icon = Icons.Default.Sync,
                     title = stringResource(R.string.settings_ra_push_retroarch_title),
@@ -309,7 +341,7 @@ private fun RALoggedOutContent(
         item {
             Spacer(modifier = Modifier.height(Dimens.spacingMd))
         }
-        item {
+        settingsRowItem(focusIndex = 0) {
             ActionPreference(
                 icon = Icons.AutoMirrored.Filled.Login,
                 title = stringResource(R.string.settings_ra_login_row_title),
@@ -334,7 +366,7 @@ private fun LazyListScope.raProxyItems(
         Spacer(modifier = Modifier.height(Dimens.spacingMd))
         SectionHeader(stringResource(R.string.settings_ra_section_offline_proxy))
     }
-    item {
+    settingsRowItem(focusIndex = proxyToggleIndex) {
         SwitchPreference(
             title = stringResource(R.string.settings_ra_proxy_title),
             subtitle = stringResource(R.string.settings_ra_proxy_subtitle),
@@ -344,7 +376,7 @@ private fun LazyListScope.raProxyItems(
         )
     }
     if (raState.proxyEnabled) {
-        item {
+        settingsRowItem(focusIndex = proxyFieldIndex) {
             val inputShape = RoundedCornerShape(Dimens.radiusMd)
             val focusRequester = remember { FocusRequester() }
             LaunchedEffect(raState.focusField) {

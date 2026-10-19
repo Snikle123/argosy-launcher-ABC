@@ -64,6 +64,7 @@ class UserPreferencesRepository @Inject constructor(
             rommDeviceClientVersion = sync.rommDeviceClientVersion,
             raUsername = sync.raUsername,
             raToken = sync.raToken,
+            raWebApiKey = sync.raWebApiKey,
             raProxyEnabled = sync.raProxyEnabled,
             raProxyAddress = sync.raProxyAddress,
             romStoragePath = storage.romStoragePath,
@@ -109,6 +110,7 @@ class UserPreferencesRepository @Inject constructor(
             openQuickPanelKey = controls.openQuickPanelKey,
             navRingRoutes = controls.navRingRoutes,
             quickNavigation = controls.quickNavigation,
+            navBarAutoHide = controls.navBarAutoHide,
             lastRommSync = sync.lastRommSync,
             lastFavoritesSync = sync.lastFavoritesSync,
             lastFavoritesCheck = sync.lastFavoritesCheck,
@@ -125,9 +127,14 @@ class UserPreferencesRepository @Inject constructor(
             homeBackgroundMode = display.homeBackgroundMode,
             homeLayout = display.homeLayout,
             presentationStyle = display.presentationStyle,
+            presentationBackgroundBlur = display.presentationBackgroundBlur,
             useAccentColorFooter = display.useAccentColorFooter,
             compactFooter = display.compactFooter,
+            hideSystemNavigationBar = display.hideSystemNavigationBar,
+            hideSystemStatusBar = display.hideSystemStatusBar,
             lockScreenArt = display.lockScreenArt,
+            homeAppAvailable = display.homeAppAvailable,
+            iconPack = display.iconPack,
             hiddenApps = app.hiddenApps,
             secondaryHomeApps = app.secondaryHomeApps,
             visibleSystemApps = app.visibleSystemApps,
@@ -153,6 +160,10 @@ class UserPreferencesRepository @Inject constructor(
             betaUpdatesEnabled = app.betaUpdatesEnabled,
             closeEmulatorOnSessionEnd = app.closeEmulatorOnSessionEnd,
             appLanguage = app.appLanguage,
+            preLaunchRecapsEnabled = app.preLaunchRecapsEnabled,
+            monthlyRecapEnabled = app.monthlyRecapEnabled,
+            lastMonthlyRecapShown = app.lastMonthlyRecapShown,
+            preLaunchRecapBaseline = app.preLaunchRecapBaseline,
             saveSyncEnabled = sync.saveSyncEnabled,
             secureSaves = sync.secureSaves,
             stateCacheEnabled = sync.stateCacheEnabled,
@@ -222,6 +233,8 @@ class UserPreferencesRepository @Inject constructor(
             appDisplayTargets = app.appDisplayTargets,
             dualScreenEnabled = display.dualScreenEnabled,
             displayRoleOverride = display.displayRoleOverride,
+            gamesDisplayTarget = display.gamesDisplayTarget,
+            appsDisplayTarget = display.appsDisplayTarget,
             dualScreenInputFocus = display.dualScreenInputFocus,
             screenLayouts = display.screenLayouts,
             installedOnlyHome = display.installedOnlyHome,
@@ -339,9 +352,13 @@ class UserPreferencesRepository @Inject constructor(
         displayPrefs.setHomeLayout(settings)
     suspend fun setPresentationStyle(style: com.nendo.argosy.domain.model.PresentationStyle) =
         displayPrefs.setPresentationStyle(style)
+    suspend fun setPresentationBackgroundBlur(blur: Int) = displayPrefs.setPresentationBackgroundBlur(blur)
     suspend fun setUseAccentColorFooter(use: Boolean) = displayPrefs.setUseAccentColorFooter(use)
     suspend fun setCompactFooter(enabled: Boolean) = displayPrefs.setCompactFooter(enabled)
+    suspend fun setHideSystemNavigationBar(hide: Boolean) = displayPrefs.setHideSystemNavigationBar(hide)
+    suspend fun setHideSystemStatusBar(hide: Boolean) = displayPrefs.setHideSystemStatusBar(hide)
     suspend fun setLockScreenArt(enabled: Boolean) = displayPrefs.setLockScreenArt(enabled)
+    suspend fun setIconPack(packageName: String?) = displayPrefs.setIconPack(packageName)
     suspend fun setGripAutoControllers(
         controllers: com.nendo.argosy.domain.model.GripAutoControllers
     ) = displayPrefs.setGripAutoControllers(controllers)
@@ -383,6 +400,8 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setScreenDimmerLevel(level: Int) = displayPrefs.setScreenDimmerLevel(level)
     suspend fun setDualScreenEnabled(enabled: Boolean) = displayPrefs.setDualScreenEnabled(enabled)
     suspend fun setDisplayRoleOverride(override: DisplayRoleOverride) = displayPrefs.setDisplayRoleOverride(override)
+    suspend fun setGamesDisplayTarget(target: EmulatorDisplayTarget) = displayPrefs.setGamesDisplayTarget(target)
+    suspend fun setAppsDisplayTarget(target: EmulatorDisplayTarget) = displayPrefs.setAppsDisplayTarget(target)
     suspend fun setScreenLayouts(layouts: ScreenLayouts) = displayPrefs.setScreenLayouts(layouts)
     suspend fun setDualScreenInputFocus(focus: DualScreenInputFocus) = displayPrefs.setDualScreenInputFocus(focus)
     suspend fun setInstalledOnlyHome(enabled: Boolean) = displayPrefs.setInstalledOnlyHome(enabled)
@@ -396,6 +415,8 @@ class UserPreferencesRepository @Inject constructor(
     // --- Sync delegates ---
 
     suspend fun setRommConfig(url: String?, username: String?) = syncPrefs.setRommConfig(url, username)
+
+    suspend fun privateIgdbIds(): List<Long> = syncPrefs.privateIgdbIds()
     suspend fun setDownloadCategoryDefault(categoryKey: String, include: Boolean) =
         syncPrefs.setDownloadCategoryDefault(categoryKey, include)
     suspend fun setDownloadCategoryPlatformOverride(platformSlug: String, categoryKey: String, include: Boolean?) =
@@ -417,6 +438,7 @@ class UserPreferencesRepository @Inject constructor(
         syncPrefs.setRommSnapshotSupport(serverKey, supported)
     suspend fun setRACredentials(username: String, token: String) = syncPrefs.setRACredentials(username, token)
     suspend fun clearRACredentials() = syncPrefs.clearRACredentials()
+    suspend fun setRAWebApiKey(key: String?) = syncPrefs.setRAWebApiKey(key)
     suspend fun setRAProxy(enabled: Boolean, address: String) = syncPrefs.setRAProxy(enabled, address)
     suspend fun setLastRommSyncTime(time: Instant) = syncPrefs.setLastRommSyncTime(time)
     suspend fun setLastRommFullSyncTime(time: Instant) = syncPrefs.setLastRommFullSyncTime(time)
@@ -501,6 +523,7 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setOpenQuickPanelKey(keyCode: Int) = controlsPrefs.setOpenQuickPanelKey(keyCode)
     suspend fun setNavRingRoutes(routes: List<String>?) = controlsPrefs.setNavRingRoutes(routes)
     suspend fun setQuickNavigation(enabled: Boolean) = controlsPrefs.setQuickNavigation(enabled)
+    suspend fun setNavBarAutoHide(enabled: Boolean) = controlsPrefs.setNavBarAutoHide(enabled)
 
 
     // --- Storage delegates ---
@@ -545,7 +568,9 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setBetaUpdatesEnabled(enabled: Boolean) = appPrefs.setBetaUpdatesEnabled(enabled)
     suspend fun setCloseEmulatorOnSessionEnd(enabled: Boolean) = appPrefs.setCloseEmulatorOnSessionEnd(enabled)
     suspend fun setHiddenApps(apps: Set<String>) = appPrefs.setHiddenApps(apps)
-    suspend fun setSecondaryHomeApps(apps: Set<String>) = appPrefs.setSecondaryHomeApps(apps)
+    suspend fun toggleDockPin(packageName: String) = appPrefs.toggleDockPin(packageName)
+    suspend fun reorderDockPins(expected: List<String>, order: List<String>) =
+        appPrefs.reorderDockPins(expected, order)
     suspend fun setVisibleSystemApps(apps: Set<String>) = appPrefs.setVisibleSystemApps(apps)
     suspend fun setAppOrder(order: List<String>) = appPrefs.setAppOrder(order)
     suspend fun setLastSeenVersion(version: String) = appPrefs.setLastSeenVersion(version)
@@ -559,6 +584,11 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setAppDisplayTarget(packageName: String, screenKey: String?) =
         appPrefs.setAppDisplayTarget(packageName, screenKey)
     suspend fun setAppLanguage(tag: String) = appPrefs.setAppLanguage(tag)
+    suspend fun setPreLaunchRecapsEnabled(enabled: Boolean) = appPrefs.setPreLaunchRecapsEnabled(enabled)
+    suspend fun setMonthlyRecapEnabled(enabled: Boolean) = appPrefs.setMonthlyRecapEnabled(enabled)
+    suspend fun setLastMonthlyRecapShown(month: java.time.YearMonth) = appPrefs.setLastMonthlyRecapShown(month)
+
+    suspend fun setPreLaunchRecapBaseline(at: java.time.Instant) = appPrefs.setPreLaunchRecapBaseline(at)
 
     // --- Builtin emulator delegates ---
 
@@ -626,6 +656,8 @@ class UserPreferencesRepository @Inject constructor(
     fun getBuiltinCoreSelections(): Flow<Map<String, String>> = builtinPrefs.getBuiltinCoreSelections()
     suspend fun removeBuiltinCoreSelectionsByCore(coreId: String) = builtinPrefs.removeBuiltinCoreSelectionsByCore(coreId)
     fun isBuiltinMigrationComplete(): Flow<Boolean> = builtinPrefs.isBuiltinMigrationComplete()
+    fun isPs2StandalonePinDone(): Flow<Boolean> = builtinPrefs.isPs2StandalonePinDone()
+    suspend fun setPs2StandalonePinDone() = builtinPrefs.setPs2StandalonePinDone()
 
     // --- Session delegates ---
 
@@ -685,6 +717,7 @@ data class BuiltinEmulatorSettings(
     val customSavePath: String? = null,
     val customStatePath: String? = null,
     val architectureOverride: String? = null,
+    val gpuDriver: String = com.nendo.argosy.data.emulator.GpuDriverToken.SYSTEM,
     val showTouchControlsWhenNoGamepad: Boolean = true,
     val touchControlsOpacityLandscape: Float = 0.45f,
     val touchControlsOpacityPortrait: Float = 1.0f,
@@ -777,6 +810,7 @@ data class UserPreferences(
     val rommDeviceClientVersion: String? = null,
     val raUsername: String? = null,
     val raToken: String? = null,
+    val raWebApiKey: String? = null,
     val raProxyEnabled: Boolean = false,
     val raProxyAddress: String = "",
     val romStoragePath: String? = null,
@@ -822,6 +856,7 @@ data class UserPreferences(
     val openQuickPanelKey: Int = ControlsPreferences.DEFAULT_OPEN_QUICK_PANEL_KEY,
     val navRingRoutes: List<String>? = null,
     val quickNavigation: Boolean = true,
+    val navBarAutoHide: Boolean = true,
     val lastRommSync: Instant? = null,
     val lastFavoritesSync: Instant? = null,
     val lastFavoritesCheck: Instant? = null,
@@ -831,7 +866,7 @@ data class UserPreferences(
     val uploadScreenshotsEnabled: Boolean = true,
     val boxArtCacheEnabled: Boolean = true,
     val hiddenApps: Set<String> = emptySet(),
-    val secondaryHomeApps: Set<String> = emptySet(),
+    val secondaryHomeApps: List<String> = emptyList(),
     val visibleSystemApps: Set<String> = emptySet(),
     val appOrder: List<String> = emptyList(),
     val maxConcurrentDownloads: Int = 1,
@@ -855,6 +890,10 @@ data class UserPreferences(
     val betaUpdatesEnabled: Boolean = false,
     val closeEmulatorOnSessionEnd: Boolean = true,
     val appLanguage: AppLanguage = AppLanguage.SYSTEM,
+    val preLaunchRecapsEnabled: Boolean = true,
+    val monthlyRecapEnabled: Boolean = true,
+    val lastMonthlyRecapShown: java.time.YearMonth? = null,
+    val preLaunchRecapBaseline: java.time.Instant? = null,
     val saveSyncEnabled: Boolean = false,
     val secureSaves: Boolean = true,
     val stateCacheEnabled: Boolean = true,
@@ -869,9 +908,14 @@ data class UserPreferences(
         com.nendo.argosy.domain.model.HomeLayoutSettings(),
     val presentationStyle: com.nendo.argosy.domain.model.PresentationStyle =
         com.nendo.argosy.domain.model.PresentationStyle(),
+    val presentationBackgroundBlur: Int = 0,
     val useAccentColorFooter: Boolean = false,
     val compactFooter: Boolean = false,
+    val hideSystemNavigationBar: Boolean = true,
+    val hideSystemStatusBar: Boolean = true,
     val lockScreenArt: Boolean = true,
+    val homeAppAvailable: Boolean = true,
+    val iconPack: String? = null,
     val fileLoggingEnabled: Boolean = false,
     val fileLoggingPath: String? = null,
     val fileLogLevel: LogLevel = LogLevel.INFO,
@@ -935,6 +979,8 @@ data class UserPreferences(
     val appDisplayTargets: Map<String, String> = emptyMap(),
     val dualScreenEnabled: Boolean = false,
     val displayRoleOverride: DisplayRoleOverride = DisplayRoleOverride.AUTO,
+    val gamesDisplayTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.PRESENTATION,
+    val appsDisplayTarget: EmulatorDisplayTarget = EmulatorDisplayTarget.DEFAULT,
     val dualScreenInputFocus: DualScreenInputFocus = DualScreenInputFocus.AUTO,
     val screenLayouts: ScreenLayouts = ScreenLayouts(),
     val installedOnlyHome: Boolean = false,
@@ -1199,9 +1245,19 @@ enum class DisplayRoleOverride(val displayName: String) {
     STANDARD("Standard"),
     SWAPPED("Swapped");
 
+    /**
+     * The override to record once a screen layout puts the roles at [rolesSwapped]. AUTO stays
+     * AUTO; an explicit choice follows the layout, so the two never name different arrangements.
+     */
+    fun followingLayout(rolesSwapped: Boolean): DisplayRoleOverride =
+        if (this == AUTO) AUTO else matching(rolesSwapped)
+
     companion object {
         fun fromString(value: String?): DisplayRoleOverride =
             entries.find { it.name == value } ?: AUTO
+
+        fun matching(rolesSwapped: Boolean): DisplayRoleOverride =
+            if (rolesSwapped) SWAPPED else STANDARD
     }
 }
 
@@ -1229,6 +1285,19 @@ enum class EmulatorDisplayTarget {
             LEGACY_BOTTOM, LEGACY_LIBRARY -> PRIMARY
             else -> entries.find { it.name == value } ?: DEFAULT
         }
+
+        /**
+         * The global Games target. Never [DEFAULT]: a missing or unknown token reads as
+         * [PRESENTATION].
+         */
+        fun gamesDefaultFrom(value: String?): EmulatorDisplayTarget =
+            fromString(value).takeUnless { it == DEFAULT } ?: PRESENTATION
+
+        /**
+         * The global Apps target. [DEFAULT] means the App Screen while the layout has one, else
+         * the Presentation screen.
+         */
+        fun appsDefaultFrom(value: String?): EmulatorDisplayTarget = fromString(value)
 
         private const val LEGACY_TOP = "TOP"
         private const val LEGACY_BOTTOM = "BOTTOM"

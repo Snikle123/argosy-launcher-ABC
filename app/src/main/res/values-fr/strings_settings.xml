@@ -95,18 +95,30 @@
     <string name="settings_theme_accent_footer_subtitle">Utiliser la couleur d\'accent pour le fond du pied de page</string>
     <string name="settings_theme_tint_bleed_title">Teinte de surface</string>
 
-    <string name="settings_theme_backdrop_title">Fond de surface</string>
+    <string name="settings_theme_backdrop_title">Arrière-plan</string>
     <string name="settings_theme_backdrop_subtitle_off">Désactivé</string>
     <string name="settings_theme_fonts_title">Polices</string>
     <string name="settings_theme_fonts_subtitle_default">Par défaut</string>
+    <string name="settings_theme_icon_pack_title">Pack d\'icônes</string>
+    <string name="settings_theme_icon_pack_subtitle">Remplace les icônes des applications par un pack installé</string>
+    <string name="settings_theme_icon_pack_subtitle_none">Aucun pack d\'icônes installé</string>
+    <string name="settings_theme_icon_pack_system">Icônes du système</string>
 
     <!-- ===== Section Interface ===== -->
 
     <string name="settings_interface_ui_scale_title">Échelle de l\'interface</string>
     <string name="settings_interface_compact_footer_title">Pied de page compact</string>
     <string name="settings_interface_compact_footer_subtitle">Utiliser une barre de contrôle plus fine</string>
+    <string name="settings_interface_hide_system_nav_bar_title">Masquer la barre de navigation système</string>
+    <string name="settings_interface_hide_system_nav_bar_subtitle">Masque les boutons Retour, Accueil et Récents d\'Android ou la barre de gestes. Balayez depuis le bord pour les afficher</string>
+    <string name="settings_interface_hide_system_status_bar_title">Masquer la barre d\'état système</string>
+    <string name="settings_interface_hide_system_status_bar_subtitle">Masque la barre d\'état d\'Android et les icônes de notification. Balayez vers le bas depuis le haut pour l\'afficher</string>
     <string name="settings_interface_lock_screen_art_title">Image de l\'écran de verrouillage</string>
     <string name="settings_interface_lock_screen_art_subtitle">Quand Argosy est votre application d\'accueil, l\'écran de verrouillage affiche votre bibliothèque ou le jeu laissé en cours. Remplace définitivement votre fond d\'écran de verrouillage.</string>
+    <string name="settings_interface_home_app_title">Disponible comme application d\'accueil</string>
+    <string name="settings_interface_home_app_subtitle">Permet à Android de proposer Argosy comme écran d\'accueil. Samsung DeX n\'ouvre Argosy que lorsque cette option est désactivée.</string>
+    <string name="settings_interface_home_app_locked_value">Activé</string>
+    <string name="settings_interface_home_app_locked_subtitle">Argosy est votre application d\'accueil. Choisissez une autre application d\'accueil dans les paramètres Android pour désactiver cette option.</string>
     <string name="settings_interface_controller_grip_title">Grip manette</string>
     <string name="settings_interface_controller_grip_subtitle">Décaler l\'interface hors de la zone couverte par un grip</string>
     <string name="settings_interface_home_screen_title">Écran d\'accueil</string>
@@ -126,6 +138,8 @@
     <string name="settings_navigation_nav_bar_pages_subtitle">Choisissez et ordonnez les pages que parcourent la barre de navigation et les boutons supérieurs</string>
     <string name="settings_navigation_quick_navigation_title">Navigation rapide</string>
     <string name="settings_navigation_quick_navigation_subtitle">Les boutons supérieurs changent de page avec la barre de navigation. Désactivée, ils changent de plateforme et d\'onglet, et les gâchettes sautent entre les lettres</string>
+    <string name="settings_navigation_nav_bar_auto_hide_title">Masquer automatiquement la barre de navigation</string>
+    <string name="settings_navigation_nav_bar_auto_hide_subtitle">Masque la barre de navigation après quelques secondes pour laisser la place aux indications des boutons. Désactivée, elle reste affichée</string>
     <string name="settings_navigation_nav_bar_pages_count">%1$d / %2$d</string>
     <string name="settings_nav_ring_modal_title">Pages de la barre de navigation</string>
     <string name="settings_nav_ring_modal_subtitle">Activez ou désactivez des pages et définissez leur ordre</string>
@@ -242,11 +256,48 @@
 
     <string name="settings_displays_screens_title">Disposition des écrans</string>
     <string name="settings_displays_screens_subtitle">Attribuez un rôle à chaque écran connecté</string>
+    <string name="settings_displays_section_display_targets">Écrans cibles</string>
+    <string name="settings_displays_games_target_title">Jeux</string>
+    <string name="settings_displays_apps_target_title">Applis</string>
+    <string name="settings_displays_launch_target_value">%1$s (écran %2$d)</string>
+    <string name="settings_displays_launch_target_no_app_screen">Aucun écran n\'est l\'écran des applis. Ouverture sur %1$s.</string>
+    <string name="settings_displays_by_platform_and_app_title">Par plateforme et appli</string>
+    <string name="settings_displays_by_platform_and_app_none">Tout suit ces réglages par défaut</string>
+    <plurals name="settings_displays_by_platform_and_app_count">
+        <item quantity="one">%d réglé individuellement</item>
+        <item quantity="many">%d réglés individuellement</item>
+        <item quantity="other">%d réglés individuellement</item>
+    </plurals>
+    <string name="settings_launch_targets_title">Écrans cibles</string>
+    <string name="settings_launch_targets_intro">Regroupés selon l\'écran sur lequel chacun s\'ouvre maintenant.</string>
+    <string name="settings_launch_targets_rail">%1$s (écran %2$d)</string>
+    <string name="settings_launch_targets_heading_description">Écran %1$d, %2$s</string>
+    <string name="settings_launch_targets_this_screen">Cet écran</string>
+    <string name="settings_launch_targets_platforms">Plateformes</string>
+    <string name="settings_launch_targets_apps">Applis</string>
+    <string name="settings_launch_targets_tag_default">Par défaut</string>
+    <string name="settings_launch_targets_tag_set">Réglé</string>
+    <string name="settings_launch_targets_platform_set">Suit %1$s</string>
+    <string name="settings_launch_targets_app_set">Reste sur l\'écran %1$d</string>
+    <string name="settings_launch_targets_app_missing">Son écran n\'est pas branché</string>
+    <string name="settings_launch_targets_app_off">L\'écran %1$d est éteint</string>
+    <plurals name="settings_launch_targets_platform_game_overrides">
+        <item quantity="one">%d jeu réglé individuellement</item>
+        <item quantity="many">%d jeux réglés individuellement</item>
+        <item quantity="other">%d jeux réglés individuellement</item>
+    </plurals>
+    <string name="settings_launch_targets_empty">Rien ne s\'ouvre ici</string>
+    <string name="settings_launch_targets_loading_apps">Recherche des applis</string>
+    <string name="settings_launch_targets_use_default_role">Par défaut (%1$s)</string>
+    <string name="settings_launch_targets_use_default_screen">Par défaut (écran %1$d)</string>
+    <string name="settings_launch_targets_option_role">%1$s (écran %2$d)</string>
+    <string name="settings_launch_targets_option_screen">Écran %1$d (%2$s)</string>
     <string name="settings_interface_presentation_title">Présentation</string>
     <string name="settings_interface_presentation_subtitle">Comment l\'autre écran affiche le jeu sélectionné</string>
     <string name="settings_interface_section_general">Général</string>
     <string name="settings_interface_section_screens">Écrans</string>
     <string name="settings_interface_section_status_bar">Barre d\'état</string>
+    <string name="settings_interface_section_recaps">Récapitulatifs</string>
     <string name="settings_presentation_layout_title">Disposition</string>
     <string name="settings_presentation_layout_cinematic">Cinéma</string>
     <string name="settings_presentation_layout_journal">Journal</string>
@@ -260,6 +311,7 @@
     <string name="settings_presentation_scrim_blur">Flou</string>
     <string name="settings_presentation_scrim_none">Aucun</string>
     <string name="settings_presentation_scrim_strength_title">Intensité du voile</string>
+    <string name="settings_presentation_background_blur_title">Flou de l\'arrière-plan</string>
     <string name="settings_presentation_art_title">Jaquette</string>
     <string name="settings_presentation_art_cover">Jaquette</string>
     <string name="settings_presentation_art_box_3d">Boîtier 3D</string>
@@ -283,7 +335,7 @@
     <string name="settings_screens_role_presentation">Présentation</string>
     <string name="settings_screens_role_presentation_detail">Affiche ce que vous regardez, sans commandes</string>
     <string name="settings_screens_role_app_target">Écran des applis</string>
-    <string name="settings_screens_role_app_target_detail">Les applis lancées s\'ouvrent ici</string>
+    <string name="settings_screens_role_app_target_detail">Les jeux et applis envoyés ici s\'ouvrent ici, sans launcher</string>
     <string name="settings_screens_role_off">Éteint</string>
     <string name="settings_screens_role_off_detail">Argosy n\'affiche rien sur cet écran</string>
     <string name="settings_displays_ambient_led_title">Contrôle LED</string>
@@ -320,6 +372,10 @@
     <string name="settings_interface_status_battery_subtitle">Afficher le niveau de batterie dans la barre d\'état</string>
     <string name="settings_interface_status_network_title">Réseau</string>
     <string name="settings_interface_status_network_subtitle">Afficher la connexion actuelle dans la barre d\'état</string>
+    <string name="settings_interface_pre_launch_recaps_title">Récapitulatif avant lancement</string>
+    <string name="settings_interface_pre_launch_recaps_subtitle">Avant un jeu RetroAchievements auquel vous n\'avez pas joué depuis une semaine, montrer où vous vous étiez arrêté</string>
+    <string name="settings_interface_monthly_recap_title">Récapitulatif mensuel</string>
+    <string name="settings_interface_monthly_recap_subtitle">Au début de chaque mois, afficher sur l\'accueil un résumé du mois précédent</string>
 
     <string name="settings_home_screen_background_title">Arrière-plan</string>
     <string name="settings_home_screen_background_subtitle">Jaquette du jeu ou motif de fond</string>
@@ -449,6 +505,27 @@
     <string name="settings_ra_logout_title">Déconnexion</string>
     <string name="settings_ra_logout_title_busy">Déconnexion en cours...</string>
     <string name="settings_ra_logout_subtitle">Se déconnecter de RetroAchievements</string>
+    <string name="settings_ra_web_api_key_title">Clé d\'API web (facultatif)</string>
+    <string name="settings_ra_web_api_key_subtitle">Elle se trouve dans la section Keys de votre panneau de contrôle RetroAchievements. Rend les récapitulatifs plus rapides et plus complets.</string>
+    <string name="settings_ra_web_api_key_value_not_set">Non définie</string>
+    <string name="settings_ra_web_api_key_value_saved_short">Enregistrée</string>
+    <string name="settings_ra_web_api_key_value_rejected">Clé refusée</string>
+    <string name="settings_ra_web_api_key_modal_title">Clé d\'API web RetroAchievements</string>
+    <string name="settings_ra_web_api_key_modal_message">Copiez la clé d\'API web depuis la section Keys de votre panneau de contrôle RetroAchievements et collez-la ici. Argosy la vérifie une fois avant de l\'enregistrer.</string>
+    <string name="settings_ra_web_api_key_field_label">Clé d\'API web</string>
+    <string name="settings_ra_web_api_key_paste">Coller</string>
+    <string name="settings_ra_web_api_key_clear">Supprimer</string>
+    <string name="settings_ra_web_api_key_cancel">Annuler</string>
+    <string name="settings_ra_web_api_key_save">Enregistrer</string>
+    <string name="settings_ra_web_api_key_save_busy">Vérification...</string>
+    <string name="settings_ra_web_api_key_status_validating">Vérification de la clé auprès de RetroAchievements...</string>
+    <string name="settings_ra_web_api_key_status_rejected">RetroAchievements n\'a pas accepté cette clé.</string>
+    <string name="settings_ra_web_api_key_status_unreachable">Impossible de joindre RetroAchievements. Réessayez.</string>
+    <string name="settings_ra_web_api_key_status_clipboard_empty">Le presse-papiers ne contient aucun texte à coller.</string>
+    <string name="settings_ra_web_api_key_saved_title">Clé d\'API web enregistrée</string>
+    <string name="settings_ra_web_api_key_saved_subtitle">Les récapitulatifs lisent désormais RetroAchievements directement.</string>
+    <string name="settings_ra_web_api_key_cleared_title">Clé d\'API web supprimée</string>
+    <string name="settings_ra_web_api_key_cleared_subtitle">La clé n\'est plus enregistrée sur cet appareil.</string>
 
     <string name="settings_ra_play_mode_title">Mode de jeu préféré</string>
     <string name="settings_ra_play_mode_subtitle_locked">Nécessite les Sauvegardes sécurisées</string>
@@ -625,12 +702,12 @@
     <string name="settings_about_version_romm_value">v%1$s</string>
     <string name="settings_about_licenses_label">Licences</string>
 
-    <!-- ===== Section Fond de surface ===== -->
+    <!-- ===== Section Arrière-plan ===== -->
 
     <string name="settings_backdrop_section_pattern">Motif</string>
     <string name="settings_backdrop_section_layers">Calques</string>
 
-    <string name="settings_backdrop_enabled_title">Fond de surface</string>
+    <string name="settings_backdrop_enabled_title">Arrière-plan</string>
     <string name="settings_backdrop_enabled_subtitle">Motif en mosaïque derrière les menus et l\'écran compagnon</string>
 
     <string name="settings_backdrop_preset_title">Motif</string>
@@ -1386,9 +1463,11 @@
     <string name="settings_builtin_architecture_title">Architecture</string>
 
     <string name="settings_builtin_video_title">A/V &amp; Performances</string>
-    <string name="settings_builtin_video_subtitle">Shaders, affichage, performances, sauvegarde</string>
+    <string name="settings_builtin_video_subtitle">Shaders, affichage, performances</string>
     <string name="settings_builtin_controls_title">Contrôles</string>
     <string name="settings_builtin_controls_subtitle">Vibration, mappage des entrées, raccourcis</string>
+    <string name="settings_builtin_saves_title">Sauvegardes</string>
+    <string name="settings_builtin_saves_subtitle">États de sauvegarde, sauvegardes serveur, dossiers</string>
 
     <string name="settings_builtin_cores_title">Gérer les cores</string>
     <string name="settings_builtin_cores_subtitle">%1$d cores installés sur %2$d</string>
@@ -1652,6 +1731,7 @@
     <string name="settings_platform_extension_default">Par défaut</string>
     <string name="settings_platform_display_target_title">Écran cible</string>
     <string name="settings_platform_display_target_default">Par défaut</string>
+    <string name="settings_platform_display_target_default_resolved">Par défaut (%1$s)</string>
     <string name="settings_platform_display_target_presentation">Écran de présentation</string>
     <string name="settings_platform_display_target_primary">Écran principal</string>
     <string name="settings_platform_display_target_app_screen">Écran des applis</string>
@@ -1660,9 +1740,11 @@
     <string name="settings_platform_launch_args_title">Arguments de lancement</string>
     <string name="settings_platform_launch_args_subtitle">Personnaliser la façon dont Argosy lance cet émulateur</string>
     <string name="settings_platform_builtin_video_title">A/V &amp; performances intégrées</string>
-    <string name="settings_platform_builtin_video_subtitle">Remplacements d\'affichage, de performances et de sauvegarde</string>
+    <string name="settings_platform_builtin_video_subtitle">Remplacements d\'affichage et de performances</string>
     <string name="settings_platform_builtin_controls_title">Contrôles intégrés</string>
     <string name="settings_platform_builtin_controls_subtitle">Remplacements de vibration et de mappage des sticks</string>
+    <string name="settings_platform_builtin_saves_title">Sauvegardes intégrées</string>
+    <string name="settings_platform_builtin_saves_subtitle">Remplacements des états de sauvegarde et des dossiers</string>
     <string name="settings_platform_core_options_title">Options du core</string>
     <string name="settings_platform_core_options_subtitle">Paramètres par core pour cette plateforme</string>
 
@@ -1774,8 +1856,8 @@
 
     <!-- ===== Panneau des dossiers GameNative ===== -->
 
-    <string name="settings_gamenative_folders_title">Dossiers GameNative</string>
-    <string name="settings_gamenative_folders_subtitle">Associez chaque boutique au dossier vers lequel GameNative exporte ses installations. Les repères Steam marquent seulement les jeux possédés comme installés ; les autres boutiques ajoutent et retirent leurs jeux pour correspondre.</string>
+    <string name="settings_gamenative_folders_title">Dossiers de synchro des lanceurs</string>
+    <string name="settings_gamenative_folders_subtitle">Associez chaque boutique au dossier vers lequel GameNative exporte ses installations, et DroidDeck à son dossier de fichiers de jeux. Les repères Steam marquent seulement les jeux possédés comme installés ; les autres boutiques ajoutent et retirent leurs jeux pour correspondre.</string>
     <string name="settings_gamenative_folders_hint_set">Définir / Effacer</string>
     <string name="settings_gamenative_folders_hint_select">Sélectionner</string>
     <string name="settings_gamenative_folders_hint_back">Retour</string>
@@ -2078,6 +2160,7 @@
     <string name="settings_emulator_picker_version_unknown">?</string>
     <string name="settings_emulator_picker_version_update_arrow">%1$s -&gt; %2$s</string>
     <string name="settings_emulator_picker_installed_label">Installé</string>
+    <string name="settings_emulator_picker_builtin_core_build">%1$s (build du %2$s)</string>
     <string name="settings_emulator_picker_download_header">DISPONIBLE AU TÉLÉCHARGEMENT</string>
     <string name="settings_emulator_picker_downloadable_downloading_progress">Téléchargement %1$d %%</string>
     <string name="settings_emulator_picker_downloadable_installing">Installation...</string>
@@ -2164,13 +2247,12 @@
     <!-- ===== Fenetre d'ordre des manettes ===== -->
 
     <string name="settings_controller_order_title">Ordre des manettes</string>
-    <string name="settings_controller_order_subtitle">Appuyez sur un bouton pour assigner une manette</string>
-    <string name="settings_controller_order_hint_confirm">Confirmer</string>
-    <string name="settings_controller_order_hint_unregister_back">Désinscrire/Retour</string>
+    <string name="settings_controller_order_subtitle">Appuyez sur un bouton d\'une manette pour la trouver.</string>
+    <string name="settings_controller_order_hint_clear_all">Tout effacer</string>
     <string name="settings_controller_order_default_name">Manette</string>
     <string name="settings_controller_order_slot_label">J%1$d</string>
-    <string name="settings_controller_order_slot_pressing">Appuyez...</string>
-    <string name="settings_controller_order_slot_empty">Vide</string>
+    <string name="settings_controller_order_seat_none">Aucune</string>
+    <string name="settings_controller_order_empty">Aucune manette connectée</string>
 
     <!-- ===== Fenetre du grip manette ===== -->
 
@@ -2514,6 +2596,8 @@
     <string name="settings_play_time_section_where">APPAREILS</string>
     <string name="settings_play_time_section_what">À QUOI VOUS JOUEZ</string>
     <string name="settings_play_time_section_facts">EN BREF</string>
+    <string name="settings_play_time_last_month_title">Récap du mois dernier</string>
+    <string name="settings_play_time_last_month_subtitle">Temps de jeu, nouveaux favoris et succès du mois dernier</string>
     <string name="settings_play_time_loading_title">Lecture des sessions...</string>
     <string name="settings_play_time_loading_message">Vos habitudes de jeu apparaîtront dans un instant.</string>
     <string name="settings_play_time_empty_title">Aucune session de jeu pour l\'instant</string>
@@ -2655,4 +2739,21 @@
     <string name="settings_play_time_devices_list_empty">Aucun appareil n\'a encore de temps de jeu.</string>
     <string name="settings_play_time_games_list_empty">Aucun jeu n\'a encore de temps de jeu.</string>
 
+    <string name="settings_builtin_graphics_header">Graphismes</string>
+    <string name="settings_builtin_graphics_backend_title">Moteur de rendu</string>
+    <string name="settings_builtin_graphics_backend_core_subtitle">Option de %1$s, commune à toutes les plateformes qui l\'utilisent</string>
+    <string name="settings_builtin_graphics_backend_platform_subtitle">Rendu utilisé par %1$s sur cette plateforme</string>
+    <string name="settings_builtin_gpu_driver_title">Pilote GPU</string>
+    <string name="settings_builtin_gpu_driver_subtitle">Pilote Vulkan des cœurs intégrés</string>
+    <string name="settings_builtin_gpu_driver_global_hint">Global : %1$s</string>
+    <string name="settings_builtin_gpu_driver_system">Pilote système</string>
+    <string name="settings_builtin_gpu_driver_missing">Pilote absent (pilote système utilisé)</string>
+    <string name="settings_builtin_gpu_driver_install">Installer %1$s</string>
+    <string name="settings_builtin_gpu_driver_installing">Installation de %1$s...</string>
+    <string name="settings_builtin_gpu_driver_installed">%1$s installé</string>
+    <string name="settings_builtin_gpu_driver_install_failed">Impossible d\'installer %1$s</string>
+    <string name="settings_builtin_gpu_driver_reason_core_unsupported">Non pris en charge par %1$s</string>
+    <string name="settings_builtin_gpu_driver_reason_core_system_only">%1$s utilise le pilote système</string>
+    <string name="settings_builtin_gpu_driver_reason_backend">S\'applique quand le moteur de rendu est Vulkan</string>
+    <string name="settings_builtin_gpu_driver_reason_device">Les pilotes personnalisés exigent un GPU Adreno</string>
 </resources>

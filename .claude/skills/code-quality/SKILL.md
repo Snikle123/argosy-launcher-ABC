@@ -59,7 +59,7 @@ All interactive UI components MUST have:
 **Focus Management:**
 - NO Compose focus for navigation or selection. `focusable()` appears once per
   rendered surface, as that surface's root key sink: `ArgosyApp` for the control
-  surface, and the presentation branch of both `MainActivity` and
+  surface, and the presentation branch of both `ArgosyActivity` and
   `SecondaryHomeActivity`. Each activity renders either `ArgosyApp` or
   `PresentationSlotContent`, so each needs a sink on the presentation side. A surface
   rendered without one leaves its window with nothing focusable and Android ANRs the
@@ -209,8 +209,12 @@ this way while quiet screens worked. Rules:
 ### Compose Stability Contract (NON-NEGOTIABLE)
 `app/compose_stability_config.conf` declares four packages stable to the Compose
 compiler: `data.model.**`, `data.local.entity.**`, `domain.model.**` and `ui.**`.
-It also declares two single classes,
-`core.game.AchievementUi` and `hardware.CompanionInGameState`. This is what keeps cold compiles at ~4 min instead of 1h+ (StabilityInferencer
+It also names single in-repo classes: `core.game.AchievementUi`,
+`hardware.CompanionInGameState`, and services passed into composables (`RomMRepository`,
+`SaveSyncRepository`, `SaveCacheManager`, `PlaySessionTracker`, `SnapshotSyncRouter`). A
+named class keeps only fixed public references (val Flows and functions);
+`scripts/ci/service_stability_checks.py` fails a public `var`, mutable collection or
+snapshot state on one. Add an in-repo class only when it meets that shape. This is what keeps cold compiles at ~4 min instead of 1h+ (StabilityInferencer
 recursion), but the compiler NO LONGER VERIFIES stability for covered classes -- we
 promise it. A violation does not crash or warn; it silently skips recompositions and
 the UI goes stale. Rules for ALL new/edited code in covered packages and classes:
@@ -254,7 +258,12 @@ interface InputHandler {
     fun onSelect(): InputResult = InputResult.UNHANDLED
     fun onLeftStickClick(): InputResult = InputResult.UNHANDLED
     fun onRightStickClick(): InputResult = InputResult.UNHANDLED
+    fun onRightStickUp(): InputResult = InputResult.UNHANDLED
+    fun onRightStickDown(): InputResult = InputResult.UNHANDLED
+    fun onRightStickLeft(): InputResult = InputResult.UNHANDLED
+    fun onRightStickRight(): InputResult = InputResult.UNHANDLED
     fun onLongConfirm(): InputResult = InputResult.UNHANDLED
+    fun onLongSelect(): InputResult = InputResult.UNHANDLED
 }
 ```
 
@@ -267,6 +276,7 @@ enum class InputButton {
     A, B, X, Y,
     DPAD, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, DPAD_HORIZONTAL, DPAD_VERTICAL,
     LB, RB, LB_RB, LT, RT, LT_RT,
+    RIGHT_STICK_VERTICAL,
     START, SELECT
 }
 ```
@@ -335,7 +345,7 @@ The `clickableNoFocus` extension (defined in `ui/util/Modifiers.kt`) disables Co
 - Use `isFocused: Boolean` prop for visual focus state
 - Manage focus index in ViewModel, not Compose focus system
 - `Modifier.focusable()` belongs only to a surface's root key sink, one per rendered
-  surface (`ArgosyApp` for control; the presentation branch of `MainActivity` and
+  surface (`ArgosyApp` for control; the presentation branch of `ArgosyActivity` and
   `SecondaryHomeActivity`). Never add one to a row, tile or control
 - `FocusRequester` is allowed ONLY for soft-keyboard text entry and those root key
   sinks. Using it to move selection between rows is the violation
@@ -589,9 +599,9 @@ There is no `:companion` process and no companion ViewModel. `SecondaryHomeActiv
 reach the same instance (see `PresentOnCompanion.kt`).
 - Any dependency exposed on `DualScreenManager` is available to the companion, including
   `GameRepository`
-- `MainActivity` constructs `DualScreenManager` by hand, passing its own injected fields
+- `ArgosyActivity` constructs `DualScreenManager` by hand, passing its own injected fields
 - To give the companion a new dependency, add the constructor parameter to
-  `DualScreenManager` and pass it at the construction site in `MainActivity`
+  `DualScreenManager` and pass it at the construction site in `ArgosyActivity`
 
 ## Completion Criteria
 

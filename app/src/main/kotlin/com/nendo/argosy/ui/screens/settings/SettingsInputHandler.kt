@@ -5,6 +5,7 @@ import com.nendo.argosy.ui.input.InputHandler
 import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.screens.settings.sections.input.BoxArtSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.BuiltinControlsSectionInput
+import com.nendo.argosy.ui.screens.settings.sections.input.BuiltinSavesSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.BuiltinVideoSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.EmulatorsSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.FrameSectionInput
@@ -15,6 +16,7 @@ import com.nendo.argosy.ui.screens.settings.sections.input.DisplaysSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.ScreensSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.DriversSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.InterfaceSectionInput
+import com.nendo.argosy.ui.screens.settings.sections.input.LaunchTargetsSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.LightSectionsInput
 import com.nendo.argosy.ui.screens.settings.sections.input.PlayTimeListSectionInput
 import com.nendo.argosy.ui.screens.settings.sections.input.PlayTimeSectionInput
@@ -49,6 +51,7 @@ class SettingsInputHandler(
         put(SettingsSection.PLATFORMS, EmulatorsSectionInput(viewModel))
         put(SettingsSection.PLATFORM_DETAIL, PlatformDetailSectionInput(viewModel))
         put(SettingsSection.BUILTIN_CONTROLS, BuiltinControlsSectionInput(viewModel))
+        put(SettingsSection.BUILTIN_SAVES, BuiltinSavesSectionInput(viewModel))
         put(SettingsSection.BOX_ART, BoxArtSectionInput(viewModel))
         put(SettingsSection.INTERFACE, InterfaceSectionInput(viewModel))
         put(SettingsSection.DISPLAYS, DisplaysSectionInput(viewModel))
@@ -59,6 +62,7 @@ class SettingsInputHandler(
         put(SettingsSection.THEME_BACKDROP, ThemeBackdropSectionInput(viewModel))
         put(SettingsSection.AMBIENT_LED, AmbientLedSectionInput(viewModel))
         put(SettingsSection.SCREENS, ScreensSectionInput(viewModel))
+        put(SettingsSection.LAUNCH_TARGETS, LaunchTargetsSectionInput(viewModel))
         put(SettingsSection.SHADER_STACK, ShaderStackSectionInput(viewModel))
         put(SettingsSection.CORE_OPTIONS, CoreOptionsSectionInput(viewModel))
         put(SettingsSection.STORAGE, StorageSectionInput(viewModel))
@@ -89,6 +93,7 @@ class SettingsInputHandler(
     }
 
     private fun dispatch(method: InputMethod, fallback: () -> InputResult): InputResult {
+        viewModel.exitTouchMode()
         val state = viewModel.uiState.value
         modalRouter.intercept(state, method)?.let { return it }
         val handler = handlers[state.currentSection]
@@ -141,6 +146,7 @@ class SettingsInputHandler(
     }
 
     override fun onBack(): InputResult {
+        viewModel.exitTouchMode()
         val state = viewModel.uiState.value
         modalRouter.intercept(state, InputMethod.BACK)?.let { return it }
         return if (!viewModel.navigateBack()) {

@@ -40,8 +40,10 @@ import com.nendo.argosy.ui.screens.library.components.LibraryPlatformGridHeaderH
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -101,6 +103,7 @@ import com.nendo.argosy.data.preferences.GridDensity
 import com.nendo.argosy.data.preferences.SelectSwapMode
 import com.nendo.argosy.ui.components.FocusedScroll
 import com.nendo.argosy.ui.components.fastAnimateScrollToItem
+import com.nendo.argosy.ui.components.withNavBarClearance
 import com.nendo.argosy.ui.components.ActiveFilterChipRow
 import com.nendo.argosy.ui.components.ActiveFilterChipUi
 import com.nendo.argosy.ui.components.AddToCollectionModal
@@ -206,7 +209,8 @@ fun LibraryScreen(
 
     val density = LocalDensity.current
     val headerHeightPx = with(density) { Dimens.headerHeightLg.toPx() }.toInt()
-    val footerHeightPx = with(density) { Dimens.footerHeight.toPx() }.toInt()
+    val footerHeight = withNavBarClearance(Dimens.footerHeight)
+    val footerHeightPx = with(density) { footerHeight.toPx() }.toInt()
 
     LaunchedEffect(uiState.focusedIndex, uiState.lastFocusMove) {
         if (uiState.lastFocusMove == null || uiState.games.isEmpty()) return@LaunchedEffect
@@ -267,7 +271,7 @@ fun LibraryScreen(
             when (event) {
                 is LibraryEvent.LaunchIntent -> {
                     try {
-                        context.startActivity(event.intent, event.options)
+                        context.startActivity(event.intent)
                     } catch (e: Exception) {
                         android.util.Log.e("LibraryScreen", "Failed to start activity", e)
                     }
@@ -448,7 +452,7 @@ fun LibraryScreen(
                                         start = gridSpacing,
                                         end = gridSpacing + sidebarWidth,
                                         top = Dimens.headerHeightLg,
-                                        bottom = cardHeight + gridSpacing
+                                        bottom = withNavBarClearance(cardHeight + gridSpacing)
                                     ),
                                     horizontalArrangement = Arrangement.spacedBy(gridSpacing),
                                     verticalArrangement = Arrangement.spacedBy(gridSpacing),
@@ -529,7 +533,12 @@ fun LibraryScreen(
                         activeFilterChips = activeFilterChips,
                         focusedGameTitle = uiState.focusedGame?.title,
                         onPreviousPlatform = { viewModel.previousPlatform() },
-                        onNextPlatform = { viewModel.nextPlatform() }
+                        onNextPlatform = { viewModel.nextPlatform() },
+                        onBack = if ((uiState.canReturnToPlatformGrid && !uiState.isPlatformGrid) || !isDefaultView) {
+                            { inputHandler.onBack() }
+                        } else {
+                            null
+                        }
                     )
                 }
             }
@@ -580,6 +589,7 @@ fun LibraryScreen(
                                     viewModel.jumpToAdjacentSection(1)
                                 }
                                 InputButton.LB_RB -> viewModel.nextPlatform()
+                                InputButton.RIGHT_STICK_VERTICAL -> viewModel.jumpToAdjacentSection(1)
                                 InputButton.SELECT -> if (com.nendo.argosy.ui.dualscreen.selectSwapsRoles()) {
                                     com.nendo.argosy.DualScreenManagerHolder.instance?.swapRoles()
                                 } else {
@@ -656,6 +666,10 @@ fun LibraryScreen(
                     onDelete = {
                         viewModel.toggleQuickMenu()
                         viewModel.deleteLocalFile(game.id)
+                    },
+                    onRemoveFromLibrary = {
+                        viewModel.toggleQuickMenu()
+                        viewModel.removeFromLibrary(game.id)
                     },
                     onHide = {
                         viewModel.toggleQuickMenu()
@@ -820,7 +834,8 @@ private fun LibraryHeader(
     activeFilterChips: List<ActiveFilterChipUi> = emptyList(),
     focusedGameTitle: String? = null,
     onPreviousPlatform: () -> Unit = {},
-    onNextPlatform: () -> Unit = {}
+    onNextPlatform: () -> Unit = {},
+    onBack: (() -> Unit)? = null
 ) {
     val aspectRatioClass = com.nendo.argosy.ui.theme.LocalUiScale.current.aspectRatioClass
     val maxNameLength = when (aspectRatioClass) {
@@ -860,12 +875,26 @@ private fun LibraryHeader(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (showLibraryLabel) {
-                    Text(
-                        text = stringResource(R.string.library_header_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (onBack != null) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.library_header_back_desc),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .clickableNoFocus(onClick = onBack)
+                                .padding(Dimens.spacingXs)
+                                .size(Dimens.iconMd)
+                        )
+                        Spacer(modifier = Modifier.width(Dimens.spacingXs))
+                    }
+                    if (showLibraryLabel) {
+                        Text(
+                            text = stringResource(R.string.library_header_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
 
                 Row(
@@ -1146,7 +1175,7 @@ private fun LibraryMasonryGrid(
             start = gridSpacing,
             end = gridSpacing + sidebarWidth,
             top = Dimens.headerHeightLg,
-            bottom = bottomPadding + gridSpacing
+            bottom = withNavBarClearance(bottomPadding + gridSpacing)
         ),
         horizontalArrangement = Arrangement.spacedBy(gridSpacing),
         verticalItemSpacing = gridSpacing,
@@ -1296,8 +1325,9 @@ private fun LibraryFooter(
             val platformButtons = if (quickNavigation) InputButton.LT_RT else InputButton.LB_RB
             add(platformButtons to stringResource(R.string.library_footer_hint_switch_platform))
         }
-        if (!quickNavigation && canJumpSection) {
-            add(InputButton.LT_RT to stringResource(R.string.library_footer_hint_jump_section))
+        if (canJumpSection) {
+            val sectionButton = if (quickNavigation) InputButton.RIGHT_STICK_VERTICAL else InputButton.LT_RT
+            add(sectionButton to stringResource(R.string.library_footer_hint_jump_section))
         }
         add(
             InputButton.A to stringResource(
@@ -1716,6 +1746,7 @@ private fun QuickMenuOverlay(
     onRefresh: () -> Unit,
     onResyncPlatform: () -> Unit,
     onDelete: () -> Unit,
+    onRemoveFromLibrary: () -> Unit,
     onHide: () -> Unit
 ) {
     val primaryIcon = when {
@@ -1752,6 +1783,7 @@ private fun QuickMenuOverlay(
     } else {
         stringResource(R.string.library_quickmenu_delete_download)
     }
+    val removeFromLibraryLabel = stringResource(R.string.library_quickmenu_remove_from_library)
     val hideLabel = if (game.isHidden) {
         stringResource(R.string.library_quickmenu_show)
     } else {
@@ -1784,6 +1816,12 @@ private fun QuickMenuOverlay(
             deleteLabel,
             isDangerous = true,
             onClick = onDelete
+        )
+        LibraryQuickMenuRow.REMOVE_FROM_LIBRARY -> MenuEntry(
+            Icons.Default.RemoveCircleOutline,
+            removeFromLibraryLabel,
+            isDangerous = true,
+            onClick = onRemoveFromLibrary
         )
         LibraryQuickMenuRow.HIDE -> MenuEntry(label = hideLabel, isDangerous = !game.isHidden, onClick = onHide)
     }

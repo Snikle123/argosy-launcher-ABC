@@ -225,6 +225,10 @@ internal class LightSectionsInput(
         val style = viewModel.uiState.value.display.presentationStyle
         val item = presentationItemAtFocusIndex(viewModel.uiState.value.focusedIndex, style)
             ?: return InputResult.UNHANDLED
+        if (item == PresentationItem.BackgroundBlur) {
+            viewModel.adjustPresentationBackgroundBlur(direction * SettingsInputHandler.SLIDER_STEP)
+            return InputResult.HANDLED
+        }
         val adjusted = adjustPresentationItem(style, item, direction) ?: return InputResult.UNHANDLED
         if (adjusted == style) {
             return InputResult.handled(if (item is PresentationItem.Stat) SoundType.SILENT else SoundType.BOUNDARY)
@@ -299,6 +303,8 @@ internal class LightSectionsInput(
                 return toggleLeftRight(direction, controls.swapStartSelect) { viewModel.setSwapStartSelect(it) }
             NavigationItem.QuickNavigation ->
                 return toggleLeftRight(direction, controls.quickNavigation) { viewModel.setQuickNavigation(it) }
+            NavigationItem.NavBarAutoHide ->
+                return toggleLeftRight(direction, controls.navBarAutoHide) { viewModel.setNavBarAutoHide(it) }
             NavigationItem.SelectLCombo -> return stepOption(
                 ControlsSettingsDelegate.COMBO_OPTIONS,
                 controls.selectLCombo,

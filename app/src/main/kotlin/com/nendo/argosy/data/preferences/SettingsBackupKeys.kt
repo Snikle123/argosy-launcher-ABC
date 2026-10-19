@@ -72,7 +72,10 @@ object SettingsBackupKeys {
         SettingsBackupKey("game_detail_theme", SettingsBackupType.BOOLEAN),
         SettingsBackupKey("use_accent_color_footer", SettingsBackupType.BOOLEAN),
         SettingsBackupKey("compact_footer", SettingsBackupType.BOOLEAN),
+        SettingsBackupKey("hide_system_navigation_bar", SettingsBackupType.BOOLEAN),
+        SettingsBackupKey("hide_system_status_bar", SettingsBackupType.BOOLEAN),
         SettingsBackupKey("lock_screen_art", SettingsBackupType.BOOLEAN),
+        SettingsBackupKey("icon_pack", SettingsBackupType.STRING),
         SettingsBackupKey("system_icon_position", SettingsBackupType.STRING),
         SettingsBackupKey("system_icon_padding", SettingsBackupType.STRING),
         SettingsBackupKey("platform_indicator_style", SettingsBackupType.STRING),
@@ -122,6 +125,7 @@ object SettingsBackupKeys {
     private val HOME_AND_LIBRARY = listOf(
         SettingsBackupKey("home_layout_config", SettingsBackupType.STRING),
         SettingsBackupKey("presentation_style", SettingsBackupType.STRING),
+        SettingsBackupKey("presentation_background_blur", SettingsBackupType.INT),
         SettingsBackupKey("default_view", SettingsBackupType.STRING),
         SettingsBackupKey("installed_only_home", SettingsBackupType.BOOLEAN),
         SettingsBackupKey("show_status_clock", SettingsBackupType.BOOLEAN),
@@ -175,6 +179,7 @@ object SettingsBackupKeys {
         SettingsBackupKey("open_quick_panel_key", SettingsBackupType.INT),
         SettingsBackupKey("nav_ring_routes", SettingsBackupType.STRING),
         SettingsBackupKey("quick_navigation", SettingsBackupType.BOOLEAN),
+        SettingsBackupKey("nav_bar_auto_hide", SettingsBackupType.BOOLEAN),
         SettingsBackupKey("grip_reserve_enabled", SettingsBackupType.BOOLEAN),
         SettingsBackupKey("grip_reserve_mode", SettingsBackupType.STRING),
         SettingsBackupKey("grip_reserve_percent", SettingsBackupType.INT)
@@ -308,7 +313,9 @@ object SettingsBackupKeys {
     )
 
     private val SESSIONS = listOf(
-        SettingsBackupKey("close_emulator_on_session_end", SettingsBackupType.BOOLEAN)
+        SettingsBackupKey("close_emulator_on_session_end", SettingsBackupType.BOOLEAN),
+        SettingsBackupKey("pre_launch_recaps_enabled", SettingsBackupType.BOOLEAN),
+        SettingsBackupKey("monthly_recap_enabled", SettingsBackupType.BOOLEAN)
     )
 
     val EXPORTED: List<SettingsBackupKey> =

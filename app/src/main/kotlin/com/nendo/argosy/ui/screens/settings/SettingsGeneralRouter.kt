@@ -109,6 +109,9 @@ private fun routeApplySectionExit(vm: SettingsViewModel, section: SettingsSectio
     when (section) {
         SettingsSection.SHADER_STACK -> routeFlushShaderChain(vm)
         SettingsSection.STEAM_SETTINGS -> vm.cancelSteamQrAuth()
+        SettingsSection.DRIVERS -> routeRefreshBuiltinGraphics(vm)
+        SettingsSection.SCREENS -> routeRefreshLaunchTargets(vm)
+        SettingsSection.LAUNCH_TARGETS -> routeLeaveLaunchTargets(vm)
         else -> {}
     }
 }
@@ -135,6 +138,7 @@ private fun routeApplySectionEntry(vm: SettingsViewModel, section: SettingsSecti
             vm.syncDelegate.refreshPlatformsFromServer(vm.viewModelScope)
         }
         SettingsSection.BUILTIN_CONTROLS -> routeLoadControllerPorts(vm)
+        SettingsSection.BUILTIN_VIDEO -> routeRefreshBuiltinGraphics(vm)
         SettingsSection.STORAGE -> {
             vm.attributionDelegate.latchSteamTileVisible(storageSteamVisibleLive(vm._uiState.value))
             vm.attributionDelegate.latchMediaTileVisible(storageMediaVisibleLive(vm._uiState.value))
@@ -157,6 +161,8 @@ private fun routeApplySectionEntry(vm: SettingsViewModel, section: SettingsSecti
         )
         SettingsSection.DRIVERS -> vm.driversDelegate.loadDrivers(vm.viewModelScope)
         SettingsSection.SCREENS -> routeRefreshScreens(vm)
+        SettingsSection.DISPLAYS -> routeRefreshLaunchTargets(vm)
+        SettingsSection.LAUNCH_TARGETS -> routeEnterLaunchTargets(vm)
         SettingsSection.MANAGED_INSTALLERS -> vm.openManagedInstallers()
         else -> {}
     }
@@ -386,6 +392,15 @@ internal fun routeAdjustBackgroundBlur(vm: SettingsViewModel, delta: Int) {
     vm.displayDelegate.adjustBackgroundBlur(vm.viewModelScope, delta)
 }
 
+internal fun routeAdjustPresentationBackgroundBlur(vm: SettingsViewModel, delta: Int) {
+    val current = vm.uiState.value.display.presentationBackgroundBlur
+    val wouldBe = (current + delta).coerceIn(0, 100)
+    if (wouldBe == current && delta != 0) {
+        vm.hapticManager.vibrate(HapticPattern.BOUNDARY_HIT)
+    }
+    vm.displayDelegate.adjustPresentationBackgroundBlur(vm.viewModelScope, delta)
+}
+
 internal fun routeAdjustBackgroundSaturation(vm: SettingsViewModel, delta: Int) {
     val current = vm.uiState.value.display.backgroundSaturation
     val wouldBe = (current + delta).coerceIn(0, 100)
@@ -488,6 +503,7 @@ internal fun routeSetDisplayRoleOverride(
             com.nendo.argosy.data.preferences.SessionStateStore(vm.context)
                 .setDisplayRoleOverride(next.name)
         }
+        routeRefreshLaunchTargets(vm)
     }
 }
 
@@ -1059,7 +1075,7 @@ internal fun routeSetRAProxyEnabled(vm: SettingsViewModel, enabled: Boolean) {
     vm.raDelegate.setProxyEnabled(vm.viewModelScope, enabled)
     if (!enabled) {
         vm._uiState.update {
-            val proxyToggleIndex = if (it.retroAchievements.isLoggedIn) 2 else 1
+            val proxyToggleIndex = if (it.retroAchievements.isLoggedIn) RA_LOGGED_IN_PROXY_TOGGLE_INDEX else RA_PROXY_TOGGLE_INDEX
             if (it.focusedIndex > proxyToggleIndex) it.copy(focusedIndex = proxyToggleIndex) else it
         }
     }

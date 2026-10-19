@@ -79,6 +79,7 @@
     <string name="gamedetail_footer_view_reviews">阅读评价</string>
     <string name="gamedetail_footer_open_related">打开</string>
     <string name="gamedetail_footer_back">返回</string>
+    <string name="gamedetail_header_back_desc">返回</string>
     <string name="gamedetail_footer_new_game">新游戏</string>
     <string name="gamedetail_footer_shortcut_make_public">设为公开</string>
     <string name="gamedetail_footer_shortcut_make_private">设为私密</string>
@@ -104,7 +105,7 @@
     <string name="gamedetail_chip_play_time_label">游戏时长</string>
 
     <string name="gamedetail_chip_rating_value">%1$d/10</string>
-    <string name="gamedetail_chip_rating_unset">未设置</string>
+    <string name="gamedetail_chip_rating_unset">无</string>
     <string name="gamedetail_chip_community_rating_value">%1$d%%</string>
 
     <string name="gamedetail_chip_play_time_minutes">%1$dm</string>
@@ -113,6 +114,7 @@
     <string name="gamedetail_chip_play_time_hours_grouped">%1$sh</string>
 
     <string name="gamedetail_collapsed_header_rating_percent">%1$d%%</string>
+    <string name="gamedetail_header_not_on_romm">RomM 上已无此游戏</string>
     <plurals name="gamedetail_collapsed_header_play_count">
         <item quantity="other">%1$d次游玩</item>
     </plurals>
@@ -266,6 +268,7 @@
 
     <string name="gamedetail_emulator_picker_title">选择模拟器</string>
     <string name="gamedetail_emulator_picker_platform_default">使用平台默认值</string>
+    <string name="gamedetail_emulator_picker_builtin_core_build">%1$s（构建于 %2$s）</string>
 
     <string name="gamedetail_variant_picker_title">选择变体</string>
     <string name="gamedetail_variant_picker_subtitle">选择要启动的版本</string>
@@ -486,4 +489,20 @@
     <string name="reviews_editor_footer_submit">发布</string>
     <string name="reviews_editor_footer_delete">删除</string>
     <string name="reviews_editor_footer_back">返回</string>
+    <string name="gamedetail_per_game_backend_label">渲染后端</string>
+    <string name="gamedetail_per_game_backend_inherit">继承（%1$s）</string>
+    <string name="gamedetail_per_game_footer_gpu_driver_options">选项</string>
+    <string name="gamedetail_per_game_gpu_driver_install">安装 %1$s</string>
+    <string name="gamedetail_per_game_gpu_driver_installing">正在安装 %1$s...</string>
+    <string name="gamedetail_per_game_gpu_driver_installed">已安装 %1$s</string>
+    <string name="gamedetail_per_game_gpu_driver_install_failed">无法安装 %1$s</string>
+    <string name="gamedetail_per_game_gpu_driver_label">GPU 驱动</string>
+    <string name="gamedetail_per_game_gpu_driver_inherit">继承（%1$s）</string>
+    <string name="gamedetail_per_game_gpu_driver_system">系统驱动</string>
+    <string name="gamedetail_per_game_gpu_driver_missing">驱动缺失（正在使用系统驱动）</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core">%1$s 不支持</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core_system_only">%1$s 使用系统驱动</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_core_unknown">此核心</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_backend">渲染后端为 Vulkan 时生效</string>
+    <string name="gamedetail_per_game_gpu_driver_reason_device">自定义驱动需要 Adreno GPU</string>
 </resources>

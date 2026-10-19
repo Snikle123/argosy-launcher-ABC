@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import com.nendo.argosy.R
 import com.nendo.argosy.data.preferences.AppLanguage
 import com.nendo.argosy.ui.components.CyclePreference
+import com.nendo.argosy.ui.components.InfoPreference
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -47,7 +48,7 @@ internal sealed class InterfaceItem(
     val visibleWhen: (InterfaceLayoutState) -> Boolean = { true }
 ) {
     val isFocusable: Boolean get() = when (this) {
-        is Header -> false
+        is Header, HomeAppLocked -> false
         else -> true
     }
 
@@ -56,6 +57,8 @@ internal sealed class InterfaceItem(
     data object Language : InterfaceItem("language", SECTION_GENERAL)
     data object UiScale : InterfaceItem("uiScale", SECTION_GENERAL)
     data object CompactFooter : InterfaceItem("compactFooter", SECTION_GENERAL)
+    data object HideSystemNavigationBar : InterfaceItem("hideSystemNavigationBar", SECTION_GENERAL)
+    data object HideSystemStatusBar : InterfaceItem("hideSystemStatusBar", SECTION_GENERAL)
     data object ControllerGrip : InterfaceItem("controllerGrip", SECTION_GENERAL)
     data object HomeScreen : InterfaceItem("homeScreen", SECTION_SCREENS)
     data object LibraryView : InterfaceItem("libraryView", SECTION_SCREENS)
@@ -69,9 +72,21 @@ internal sealed class InterfaceItem(
         }
     )
     data object LockScreenArt : InterfaceItem("lockScreenArt", SECTION_SCREENS)
+    data object HomeApp : InterfaceItem(
+        key = "homeApp",
+        section = SECTION_SCREENS,
+        visibleWhen = { !it.display.isDefaultHome }
+    )
+    data object HomeAppLocked : InterfaceItem(
+        key = "homeAppLocked",
+        section = SECTION_SCREENS,
+        visibleWhen = { it.display.isDefaultHome }
+    )
     data object StatusClock : InterfaceItem("statusClock", SECTION_STATUS_BAR)
     data object StatusBattery : InterfaceItem("statusBattery", SECTION_STATUS_BAR)
     data object StatusNetwork : InterfaceItem("statusNetwork", SECTION_STATUS_BAR)
+    data object PreLaunchRecaps : InterfaceItem("preLaunchRecaps", SECTION_RECAPS)
+    data object MonthlyRecap : InterfaceItem("monthlyRecap", SECTION_RECAPS)
 
     companion object {
         /**
@@ -83,11 +98,15 @@ internal sealed class InterfaceItem(
         val ALL: List<InterfaceItem>
             get() = listOf(
                 Header("generalHeader", SECTION_GENERAL, R.string.settings_interface_section_general),
-                Language, UiScale, CompactFooter, ControllerGrip,
+                Language, UiScale, CompactFooter, HideSystemNavigationBar, HideSystemStatusBar,
+                ControllerGrip,
                 Header("screensHeader", SECTION_SCREENS, R.string.settings_interface_section_screens),
                 HomeScreen, LibraryView, BoxArt, Presentation, LockScreenArt,
+                HomeApp, HomeAppLocked,
                 Header("statusBarHeader", SECTION_STATUS_BAR, R.string.settings_interface_section_status_bar),
-                StatusClock, StatusBattery, StatusNetwork
+                StatusClock, StatusBattery, StatusNetwork,
+                Header("recapsHeader", SECTION_RECAPS, R.string.settings_interface_section_recaps),
+                PreLaunchRecaps, MonthlyRecap
             )
     }
 }
@@ -95,11 +114,13 @@ internal sealed class InterfaceItem(
 private const val SECTION_GENERAL = "general"
 private const val SECTION_SCREENS = "screens"
 private const val SECTION_STATUS_BAR = "statusBar"
+private const val SECTION_RECAPS = "recaps"
 
 private fun interfaceSectionTitleRes(section: String): Int? = when (section) {
     SECTION_GENERAL -> R.string.settings_interface_section_general
     SECTION_SCREENS -> R.string.settings_interface_section_screens
     SECTION_STATUS_BAR -> R.string.settings_interface_section_status_bar
+    SECTION_RECAPS -> R.string.settings_interface_section_recaps
     else -> null
 }
 
@@ -142,6 +163,7 @@ fun InterfaceSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
     LaunchedEffect(lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             viewModel.refreshUsageStatsPermission()
+            viewModel.refreshDefaultHome()
         }
     }
 
@@ -213,12 +235,43 @@ fun InterfaceSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     onToggle = { viewModel.setCompactFooter(it) }
                 )
 
+                InterfaceItem.HideSystemNavigationBar -> SwitchPreference(
+                    title = stringResource(R.string.settings_interface_hide_system_nav_bar_title),
+                    subtitle = stringResource(R.string.settings_interface_hide_system_nav_bar_subtitle),
+                    isEnabled = display.hideSystemNavigationBar,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setHideSystemNavigationBar(it) }
+                )
+
+                InterfaceItem.HideSystemStatusBar -> SwitchPreference(
+                    title = stringResource(R.string.settings_interface_hide_system_status_bar_title),
+                    subtitle = stringResource(R.string.settings_interface_hide_system_status_bar_subtitle),
+                    isEnabled = display.hideSystemStatusBar,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setHideSystemStatusBar(it) }
+                )
+
                 InterfaceItem.LockScreenArt -> SwitchPreference(
                     title = stringResource(R.string.settings_interface_lock_screen_art_title),
                     subtitle = stringResource(R.string.settings_interface_lock_screen_art_subtitle),
                     isEnabled = display.lockScreenArt,
                     isFocused = isFocused(item),
                     onToggle = { viewModel.setLockScreenArt(it) }
+                )
+
+                InterfaceItem.HomeApp -> SwitchPreference(
+                    title = stringResource(R.string.settings_interface_home_app_title),
+                    subtitle = stringResource(R.string.settings_interface_home_app_subtitle),
+                    isEnabled = display.homeAppAvailable,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setHomeAppAvailable(it) }
+                )
+
+                InterfaceItem.HomeAppLocked -> InfoPreference(
+                    title = stringResource(R.string.settings_interface_home_app_title),
+                    value = stringResource(R.string.settings_interface_home_app_locked_value),
+                    subtitle = stringResource(R.string.settings_interface_home_app_locked_subtitle),
+                    isFocused = false
                 )
 
                 InterfaceItem.StatusClock -> SwitchPreference(
@@ -243,6 +296,22 @@ fun InterfaceSection(uiState: SettingsUiState, viewModel: SettingsViewModel) {
                     isEnabled = display.showStatusNetwork,
                     isFocused = isFocused(item),
                     onToggle = { viewModel.setShowStatusNetwork(it) }
+                )
+
+                InterfaceItem.PreLaunchRecaps -> SwitchPreference(
+                    title = stringResource(R.string.settings_interface_pre_launch_recaps_title),
+                    subtitle = stringResource(R.string.settings_interface_pre_launch_recaps_subtitle),
+                    isEnabled = display.preLaunchRecaps,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setPreLaunchRecaps(it) }
+                )
+
+                InterfaceItem.MonthlyRecap -> SwitchPreference(
+                    title = stringResource(R.string.settings_interface_monthly_recap_title),
+                    subtitle = stringResource(R.string.settings_interface_monthly_recap_subtitle),
+                    isEnabled = display.monthlyRecap,
+                    isFocused = isFocused(item),
+                    onToggle = { viewModel.setMonthlyRecap(it) }
                 )
 
                 InterfaceItem.ControllerGrip -> NavigationPreference(

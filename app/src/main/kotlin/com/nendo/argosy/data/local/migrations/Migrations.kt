@@ -4197,6 +4197,48 @@ object Migration_208_209 : Migration(208, 209) {
     }
 }
 
+object Migration_209_210 : Migration(209, 210) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `platform_libretro_settings` ADD COLUMN `graphicsApi` TEXT")
+        db.execSQL("ALTER TABLE `platform_libretro_settings` ADD COLUMN `gpuDriver` TEXT")
+        db.execSQL("ALTER TABLE `emulator_configs` ADD COLUMN `gpuDriver` TEXT")
+    }
+}
+
+object Migration_210_211 : Migration(210, 211) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `emulator_configs` ADD COLUMN `graphicsBackend` TEXT")
+    }
+}
+
+object Migration_211_212 : Migration(211, 212) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `play_sessions` ADD COLUMN `raGameId` INTEGER")
+        db.execSQL("ALTER TABLE `play_sessions` ADD COLUMN `richPresence` TEXT")
+        db.execSQL("ALTER TABLE `play_sessions` ADD COLUMN `richPresenceAt` INTEGER")
+    }
+}
+
+object Migration_212_213 : Migration(212, 213) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `play_sessions` ADD COLUMN `raSnapshotUnlocks` TEXT")
+    }
+}
+
+object Migration_213_214 : Migration(213, 214) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `ra_patch_cache` (" +
+                "`raGameId` INTEGER NOT NULL, `ownerUserId` INTEGER NOT NULL, " +
+                "`patchJson` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`raGameId`, `ownerUserId`))"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ra_patch_cache_ownerUserId` ON `ra_patch_cache` (`ownerUserId`)"
+        )
+    }
+}
+
 object Migration_203_204 : Migration(203, 204) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(

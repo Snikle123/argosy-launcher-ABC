@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.nendo.argosy.core.input.controllerIdOf
 import com.nendo.argosy.data.local.entity.ControllerOrderEntity
 import com.nendo.argosy.data.local.entity.HotkeyEntity
 import com.nendo.argosy.data.repository.CoreDeviceProfiles
@@ -32,26 +33,24 @@ class InputConfigCoordinator(
 
     var controllerOrderCount by mutableIntStateOf(0)
         private set
-    var controllerOrderList by mutableStateOf<List<ControllerOrderEntity>>(emptyList())
-        private set
     var hotkeyList by mutableStateOf<List<HotkeyEntity>>(emptyList())
         private set
 
-    fun initialize() {
+    fun initialize(onControllerOrderLoaded: (List<ControllerOrderEntity>) -> Unit = {}) {
         hotkeyManager = HotkeyManager(inputConfigRepository, scope)
 
         scope.launch {
             inputConfigRepository.clearAutoDetectedMappings()
 
             val controllerOrder = inputConfigRepository.getControllerOrder()
-            controllerOrderList = controllerOrder
             controllerOrderCount = controllerOrder.size
             portResolver.setControllerOrder(controllerOrder)
+            onControllerOrderLoaded(controllerOrder)
 
             val connectedDevices = inputConfigRepository.getConnectedControllers()
                 .mapNotNull { InputDevice.getDevice(it.deviceId) }
-            portResolver.onPortClaimed = { controllerId, port ->
-                if (port == 0) hotkeyManager.setPlayer1ControllerId(controllerId)
+            portResolver.onPortClaimed = { _, _ ->
+                hotkeyManager.setPlayer1ControllerId(portResolver.playerOneControllerId())
             }
 
             val mappings = mutableMapOf<String, Map<InputSource, Int>>()
@@ -61,7 +60,7 @@ class InputConfigCoordinator(
                     profileIdForDevice(device),
                     gameId
                 )
-                mappings[ControllerPortResolver.getControllerId(device)] = mapping
+                mappings[controllerIdOf(device)] = mapping
             }
             inputMapper.setExtendedMappings(mappings)
             inputMapper.setPortResolver { device -> portResolver.getPort(device) }
@@ -73,7 +72,7 @@ class InputConfigCoordinator(
             hotkeyManager.setPlatformMappedButtons(platformMappedButtons(mappings))
             hotkeyManager.setLimitToPlayer1(limitHotkeysToPlayer1)
 
-            hotkeyManager.setPlayer1ControllerId(player1ControllerId(controllerOrder))
+            hotkeyManager.setPlayer1ControllerId(portResolver.playerOneControllerId())
 
             Log.d(TAG, "Input config loaded: ${controllerOrder.size} port assignments, ${mappings.size} mappings, ${hotkeys.size} hotkeys")
         }
@@ -81,10 +80,9 @@ class InputConfigCoordinator(
 
     suspend fun refreshControllerOrder() {
         val order = inputConfigRepository.getControllerOrder()
-        controllerOrderList = order
         controllerOrderCount = order.size
         portResolver.setControllerOrder(order)
-        hotkeyManager.setPlayer1ControllerId(player1ControllerId(order))
+        hotkeyManager.setPlayer1ControllerId(portResolver.playerOneControllerId())
     }
 
     /**
@@ -96,16 +94,8 @@ class InputConfigCoordinator(
             .map { it.controllerId }
             .toSet()
         portResolver.releaseDisconnected(connected)
-        hotkeyManager.setPlayer1ControllerId(player1ControllerId(controllerOrderList))
+        hotkeyManager.setPlayer1ControllerId(portResolver.playerOneControllerId())
     }
-
-    /**
-     * Null until a pad takes port zero, which leaves hotkeys open to every pad rather than pinned
-     * to one nobody is holding.
-     */
-    private fun player1ControllerId(order: List<ControllerOrderEntity>): String? =
-        order.firstOrNull { it.port == 0 }?.controllerId
-            ?: portResolver.claimedPortFor0()
 
     fun setGameId(newGameId: Long?) {
         if (gameId == newGameId) return

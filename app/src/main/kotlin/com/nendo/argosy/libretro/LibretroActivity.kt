@@ -49,10 +49,13 @@ import androidx.compose.ui.res.stringResource
 import com.nendo.argosy.libretro.ui.RAConnectionNotification
 import com.nendo.argosy.core.input.ConnectedControllerTracker
 import com.nendo.argosy.core.input.ControllerDetector
+import com.nendo.argosy.core.input.controllerIdOf
+import com.nendo.argosy.core.input.isPhysicalGamepad
 import com.nendo.argosy.core.input.VirtualPad
 import com.nendo.argosy.ui.input.LocalABIconsSwapped
 import com.nendo.argosy.ui.input.LocalSwapStartSelect
 import com.nendo.argosy.ui.input.LocalXYIconsSwapped
+import com.nendo.argosy.ui.input.buttonGlyphSwaps
 import androidx.lifecycle.lifecycleScope
 import com.nendo.argosy.BuildConfig
 import com.nendo.argosy.R
@@ -116,6 +119,7 @@ import com.nendo.argosy.libretro.ui.InGameShaderChainScreen
 import com.nendo.argosy.libretro.ui.LibretroGamepadInputHandler
 import com.nendo.argosy.libretro.ui.LibretroMenuInputHandler
 import com.nendo.argosy.ui.input.InputHandler
+import com.nendo.argosy.ui.input.InputResult
 import com.nendo.argosy.ui.input.LocalGamepadInputHandler
 import com.nendo.argosy.ui.screens.settings.libretro.InGameLibretroSettingsAccessor
 import com.nendo.argosy.libretro.frame.FrameDownloader
@@ -141,6 +145,7 @@ import com.swordfish.libretrodroid.GLRetroView
 import com.swordfish.libretrodroid.GLRetroViewData
 import com.swordfish.libretrodroid.LibretroDroid
 import com.swordfish.libretrodroid.Variable
+import com.swordfish.libretrodroid.VulkanDriver
 import com.nendo.argosy.libretro.coreoptions.CoreControlManifestRegistry
 import com.nendo.argosy.libretro.coreoptions.CoreOptionManifestRegistry
 import com.nendo.argosy.data.local.entity.CoreInputMode
@@ -149,8 +154,11 @@ import com.nendo.argosy.data.local.entity.GameCoreOptionOverrideEntity
 import com.nendo.argosy.ui.screens.settings.CoreOptionViewItem
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -197,6 +205,7 @@ class LibretroActivity : ComponentActivity() {
     @Inject lateinit var saveCacheManager: SaveCacheManager
     @Inject lateinit var saveScreenshotCapture: com.nendo.argosy.hardware.SaveScreenshotCapture
     @Inject lateinit var saveUnitResolver: com.nendo.argosy.data.sync.SaveUnitResolver
+    @Inject lateinit var sigilSaveHandler: com.nendo.argosy.data.sync.platform.SigilSaveHandler
     @Inject lateinit var activeSaveRepository: com.nendo.argosy.data.repository.ActiveSaveRepository
     @Inject lateinit var ambientLedManager: AmbientLedManager
     @Inject lateinit var socialRepository: SocialRepository
@@ -240,6 +249,14 @@ class LibretroActivity : ComponentActivity() {
     private val portResolver = ControllerPortResolver()
     private val inputMapper = ControllerInputMapper()
     private lateinit var inputConfig: InputConfigCoordinator
+    private val controllerSeats by lazy {
+        com.nendo.argosy.ui.screens.settings.components.ControllerSeatController(
+            repository = inputConfigRepository,
+            scope = lifecycleScope,
+            onSeatsChanged = { inputConfig.refreshControllerOrder() }
+        )
+    }
+    private var seatPromptVisible by mutableStateOf(false)
     private lateinit var hotkeyDispatcher: LibretroHotkeyDispatcher
     private lateinit var motionProcessor: MotionEventProcessor
     private var vibrator: Vibrator? = null
@@ -288,6 +305,7 @@ class LibretroActivity : ComponentActivity() {
     private var menuFocusIndex by mutableStateOf(0)
     private lateinit var menuInputHandler: LibretroMenuInputHandler
     private lateinit var gamepadInputBridge: LibretroGamepadInputHandler
+    private lateinit var connectedControllers: StateFlow<List<com.nendo.argosy.data.repository.ControllerInfo>>
     private var activeMenuHandler: InputHandler? = null
 
     private var restoredSram: ByteArray? = null
@@ -395,6 +413,7 @@ class LibretroActivity : ComponentActivity() {
 
     private val isAnyMenuOpen: Boolean
         get() = menuVisible || shaderChainEditorVisible || frameEditorVisible || autoRestorePromptVisible || discMenuVisible ||
+            seatPromptVisible ||
             speedrunPickerVisible || readerKind != null || isClosing || netplay.isAnyDialogVisible
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -575,7 +594,11 @@ class LibretroActivity : ComponentActivity() {
             controllerTypeForPort = { port -> appliedControllerTypes[port] ?: effectiveControllerType(port) },
             scope = lifecycleScope
         )
-        inputConfig.initialize()
+        portResolver.setLaunchPad(
+            controllerId = intent.getStringExtra(EXTRA_LAUNCH_CONTROLLER_ID),
+            isDocked = isDockedDark()
+        )
+        inputConfig.initialize(onControllerOrderLoaded = ::promptForSeatsIfNeeded)
 
         if (settings.rumbleEnabled) {
             setupRumble()
@@ -787,6 +810,9 @@ class LibretroActivity : ComponentActivity() {
                 publishSessionControls()
             }
         )
+        lifecycleScope.launch(Dispatchers.IO) {
+            saveStateManager.watchCoreSaveFiles(sigilSaveHandler.liveSaveFiles(gameId, EmulatorRegistry.BUILTIN_ID))
+        }
         saveStateManager.adoptLegacySaveIfMissing()
         if (coreName == "genesis_plus_gx" && isSegaCd()) saveStateManager.adoptSharedSegaCdBramIfMissing()
         val restoreResult = kotlinx.coroutines.runBlocking {
@@ -813,14 +839,22 @@ class LibretroActivity : ComponentActivity() {
         }
     }
 
+    private fun applyGlyphSwaps(swaps: com.nendo.argosy.ui.input.ButtonGlyphSwaps) {
+        swapAB = swaps.ab
+        swapXY = swaps.xy
+        swapStartSelect = swaps.startSelect
+    }
+
     private fun initializeInputHandlers() {
         val inputPrefs = launchPreferences
         menuWrapMode = inputPrefs.menuWrapMode
-        val detectedLayout = ControllerDetector.detectFromActiveGamepad().layout
-        val isNintendoLayout = ControllerDetector.isNintendoLayout(inputPrefs.controllerLayout, detectedLayout)
-        swapAB = isNintendoLayout xor inputPrefs.swapAB
-        swapXY = isNintendoLayout xor inputPrefs.swapXY
-        swapStartSelect = inputPrefs.swapStartSelect
+        lifecycleScope.launch {
+            connectedControllerTracker.activeLayout.collect { layout ->
+                applyGlyphSwaps(inputPrefs.buttonGlyphSwaps(layout))
+            }
+        }
+        connectedControllers = inputConfigRepository.observeConnectedControllers()
+            .stateIn(lifecycleScope, SharingStarted.Eagerly, emptyList())
         menuInputHandler = LibretroMenuInputHandler(
             inputPrefs.swapAB,
             inputPrefs.swapXY,
@@ -963,6 +997,8 @@ class LibretroActivity : ComponentActivity() {
                 forceSoftwareTiming = settings.forceSoftwareTiming
                 rumbleEventsEnabled = settings.rumbleEnabled
                 variables = coreVariablesFromIntent()
+                preferVulkan = intent.getBooleanExtra(EXTRA_PREFER_VULKAN, false)
+                vulkanDriver = vulkanDriverFromIntent()
             }
         )
         lifecycle.addObserver(retroView)
@@ -1007,6 +1043,7 @@ class LibretroActivity : ComponentActivity() {
                     is GLRetroView.GLRetroEvents.FrameRendered -> {
                         if (!firstFrameRendered) {
                             firstFrameRendered = true
+                            if (seatPromptVisible) retroView.pauseEmulation()
                             Log.i(TAG, "[Startup] First frame rendered - emulation running successfully")
                             Log.d(TAG, "[Startup] gameId=$gameId, core=$coreName, hardcore=$hardcoreMode")
                             checkStateSupport()
@@ -1691,6 +1728,13 @@ class LibretroActivity : ComponentActivity() {
                         onSkip = { handleAutoRestoreResponse(false) }
                     )
                 }
+                if (seatPromptVisible) {
+                    activeMenuHandler = seatPromptInputHandler
+                    com.nendo.argosy.ui.screens.settings.components.ControllerOrderModal(
+                        controller = controllerSeats,
+                        onDismiss = ::closeSeatPrompt
+                    )
+                }
                 if (!isAnyMenuOpen) {
                     activeMenuHandler = null
                 }
@@ -2353,27 +2397,17 @@ class LibretroActivity : ComponentActivity() {
     private fun buildModalCallbacks(): InGameModalCallbacks {
         val repo = inputConfig.inputConfigRepository
         return InGameModalCallbacks(
-            controllerOrder = inputConfig.controllerOrderList,
+            controllerSeats = controllerSeats,
             hotkeys = inputConfig.hotkeyList,
-            connectedControllers = repo.getConnectedControllers(),
-            onAssignController = { port, device ->
-                lifecycleScope.launch {
-                    repo.assignControllerToPort(port, device)
-                    inputConfig.refreshControllerOrder()
-                }
-            },
-            onClearControllerOrder = {
-                lifecycleScope.launch {
-                    repo.clearControllerOrder()
-                    inputConfig.refreshControllerOrder()
-                }
-            },
-            lockedProfileIndex = repo.getConnectedControllers()
-                .firstNotNullOfOrNull { InputDevice.getDevice(it.deviceId) }
-                ?.let { device ->
+            connectedControllers = connectedControllers,
+            activeController = connectedControllerTracker.activeController,
+            onHoldActiveController = connectedControllerTracker::holdActiveController,
+            lockedProfileIndexFor = { controller ->
+                InputDevice.getDevice(controller.deviceId)?.let { device ->
                     MappingPlatforms.ALL.indexOfFirst { it == inputConfig.profileForDevice(device) }
                         .takeIf { index -> index >= 0 }
-                },
+                }
+            },
             onGetMapping = { controller, mappingPlatformId ->
                 val device = InputDevice.getDevice(controller.deviceId)
                 if (device != null) {
@@ -3152,6 +3186,32 @@ class LibretroActivity : ComponentActivity() {
         }
     }
 
+    private fun promptForSeatsIfNeeded(savedOrder: List<com.nendo.argosy.data.local.entity.ControllerOrderEntity>) {
+        if (isGuestJoinedSession || netplay.inSession) return
+        val connected = InputDevice.getDeviceIds().toList()
+            .mapNotNull { InputDevice.getDevice(it) }
+            .filter { it.isPhysicalGamepad() }
+            .map { SeatedPad(controllerIdOf(it), ControllerDetector.isBuiltInPad(it)) }
+            .distinctBy { it.controllerId }
+        val savedIds = savedOrder.mapTo(mutableSetOf()) { it.controllerId }
+        if (!ControllerSeating.shouldPromptForSeats(connected, savedIds)) return
+        controllerSeats.open()
+        seatPromptVisible = true
+        retroView.suppressAutoResume = true
+        if (firstFrameRendered) retroView.pauseEmulation()
+    }
+
+    private fun closeSeatPrompt() {
+        seatPromptVisible = false
+    }
+
+    private val seatPromptInputHandler = object : InputHandler {
+        override fun onBack(): InputResult {
+            closeSeatPrompt()
+            return InputResult.HANDLED
+        }
+    }
+
     fun enterTouchEditMode() {
         menuVisible = false
         closeMenuSection()
@@ -3186,6 +3246,7 @@ class LibretroActivity : ComponentActivity() {
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         observeVirtualPad(event)
+        connectedControllerTracker.noteInput(event)
         return dispatchKeyFrom(event, KeyPressGate.Source.Key, coreBound = true)
     }
 
@@ -3204,7 +3265,7 @@ class LibretroActivity : ComponentActivity() {
         } else if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 &&
             !isAnyMenuOpen && ::hotkeyDispatcher.isInitialized
         ) {
-            val controllerId = event.device?.let { getControllerId(it) }
+            val controllerId = event.device?.let { controllerIdOf(it) }
             val forward = keyPressGate.onDown(event.deviceId, event.keyCode, source, coreBound) {
                 hotkeyDispatcher.onKeyDown(event.keyCode, controllerId)
             }
@@ -3223,7 +3284,7 @@ class LibretroActivity : ComponentActivity() {
 
     private fun isMenuHotkeyEvent(event: KeyEvent): Boolean {
         if (!::hotkeyDispatcher.isInitialized) return false
-        val controllerId = event.device?.let { getControllerId(it) }
+        val controllerId = event.device?.let { controllerIdOf(it) }
         return hotkeyDispatcher.isMenuToggleKey(event.keyCode, controllerId)
     }
 
@@ -3256,7 +3317,7 @@ class LibretroActivity : ComponentActivity() {
         if (event.repeatCount > 0 && keyPressGate.isWithheld(event.deviceId, keyCode)) return true
         if (event.repeatCount > 0 && deferredCoreKeys.isHolding(keyCode)) return true
         if (event.repeatCount == 0) {
-            val controllerId = event.device?.let { getControllerId(it) }
+            val controllerId = event.device?.let { controllerIdOf(it) }
             if (hotkeyDispatcher.isPotentialComboKey(keyCode, controllerId)) {
                 deferredCoreKeys.hold(keyCode, event)
                 return true
@@ -3295,6 +3356,7 @@ class LibretroActivity : ComponentActivity() {
 
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         observeVirtualPad(event)
+        connectedControllerTracker.noteInput(event)
         val device = event.device
         triggerAxisKeyEmitter.emitByAxis(event).forEach { (axis, key) ->
             val analogMapped = device != null && inputMapper.hasAnalogMappingForAxis(device, axis)
@@ -3331,7 +3393,11 @@ class LibretroActivity : ComponentActivity() {
      */
     private fun setUpSecondScreen() {
         val output = DualScreenOutput.forCore(resolvedCoreId)
-            ?.takeIf { !isDockedDark() && secondScreenDisplay() != null }
+            ?.takeIf {
+                !isDockedDark() &&
+                    !com.nendo.argosy.util.DesktopMode.isActive(this) &&
+                    secondScreenDisplay() != null
+            }
         if (output == null) {
             clearScreenSplit()
             return
@@ -3730,14 +3796,16 @@ class LibretroActivity : ComponentActivity() {
         return if (canonical in PLATFORMS_WITH_DIGITAL_RIGHT_STICK) DIGITAL_RIGHT_STICK_DEADZONE else 0f
     }
 
-    private fun getControllerId(device: InputDevice): String {
-        return "${device.vendorId}:${device.productId}:${device.descriptor}"
-    }
-
     private fun coreVariablesFromIntent(): Array<Variable> {
         val keys = intent.getStringArrayExtra(EXTRA_CORE_VAR_KEYS) ?: return emptyArray()
         val values = intent.getStringArrayExtra(EXTRA_CORE_VAR_VALUES) ?: return emptyArray()
         return keys.zip(values) { k, v -> Variable(k, v) }.toTypedArray()
+    }
+
+    private fun vulkanDriverFromIntent(): VulkanDriver? {
+        val directory = intent.getStringExtra(EXTRA_VULKAN_DRIVER_DIR) ?: return null
+        val library = intent.getStringExtra(EXTRA_VULKAN_DRIVER_LIBRARY) ?: return null
+        return VulkanDriver(directory, library)
     }
 
     /**
@@ -3807,10 +3875,14 @@ class LibretroActivity : ComponentActivity() {
         const val EXTRA_CORE_NAME = "core_name"
         const val EXTRA_CORE_VAR_KEYS = "core_var_keys"
         const val EXTRA_CORE_VAR_VALUES = "core_var_values"
+        const val EXTRA_PREFER_VULKAN = "prefer_vulkan"
+        const val EXTRA_VULKAN_DRIVER_DIR = "vulkan_driver_dir"
+        const val EXTRA_VULKAN_DRIVER_LIBRARY = "vulkan_driver_library"
         const val EXTRA_SAVES_DIR = "saves_dir"
         const val EXTRA_STATES_DIR = "states_dir"
         const val EXTRA_NETPLAY_JOIN_SESSION_ID = "netplay_join_session_id"
         const val EXTRA_NETPLAY_JOIN_HOST_USER_ID = "netplay_join_host_user_id"
+        const val EXTRA_LAUNCH_CONTROLLER_ID = "launch_controller_id"
         const val ACTION_SHOW_MENU = "com.nendo.argosy.action.SHOW_MENU"
         const val ACTION_QUIT = "com.nendo.argosy.action.QUIT"
 

@@ -276,8 +276,8 @@
     <!-- Row title. Noun phrase: how much of the accent colour bleeds into panels and cards. -->
     <string name="settings_theme_tint_bleed_title">Surface Tint</string>
 
-    <!-- Row opening the settings for the pattern drawn behind panels. Noun phrase. -->
-    <string name="settings_theme_backdrop_title">Surface Backdrop</string>
+    <!-- Row opening the settings for the pattern drawn behind full screens. Noun phrase. -->
+    <string name="settings_theme_backdrop_title">Backdrop</string>
     <!-- Second line of that row when no pattern is drawn. Adverb. -->
     <string name="settings_theme_backdrop_subtitle_off">Off</string>
     <!-- Row opening the typeface settings. Noun, plural. -->
@@ -285,6 +285,15 @@
     <!-- Second line of that row, standing in for a typeface the user has not changed. Adjective
          used as a noun. -->
     <string name="settings_theme_fonts_subtitle_default">Default</string>
+    <!-- Row title. Noun phrase: a separately installed app that supplies replacement app icons,
+         in the sense used by Android launchers. -->
+    <string name="settings_theme_icon_pack_title">Icon Pack</string>
+    <!-- Second line of that row when at least one icon pack is installed. -->
+    <string name="settings_theme_icon_pack_subtitle">Replaces app icons with an installed icon pack</string>
+    <!-- Second line of that row when no icon pack is installed. -->
+    <string name="settings_theme_icon_pack_subtitle_none">No icon packs installed</string>
+    <!-- Value of that row meaning each app keeps the icon it ships with. Noun phrase. -->
+    <string name="settings_theme_icon_pack_system">System Icons</string>
 
     <!-- ===== Interface section ===== -->
 
@@ -296,11 +305,31 @@
     <!-- Second line of that row. "Control guide bar" is the strip that says what each button
          does. -->
     <string name="settings_interface_compact_footer_subtitle">Use a thinner control guide bar</string>
+    <!-- Row title. Verb phrase: take Android's own navigation buttons or gesture bar off the
+         screen. Not Argosy's in-app nav bar, which has its own setting. -->
+    <string name="settings_interface_hide_system_nav_bar_title">Hide System Navigation Bar</string>
+    <!-- Second line of that row. Says what is hidden and how to bring it back for a moment. -->
+    <string name="settings_interface_hide_system_nav_bar_subtitle">Hide Android\'s back, home and recents buttons or gesture bar. Swipe from the edge to show them</string>
+    <!-- Row title. Verb phrase: take Android's own status bar (time, notifications, signal at the
+         top of the screen) off the screen. Not Argosy's status bar items, which have their own
+         rows. -->
+    <string name="settings_interface_hide_system_status_bar_title">Hide System Status Bar</string>
+    <!-- Second line of that row. Says what is hidden and how to bring it back for a moment. -->
+    <string name="settings_interface_hide_system_status_bar_subtitle">Hide Android\'s status bar and notification icons. Swipe down from the top to show it</string>
     <!-- Setting title. Noun phrase: the picture Argosy puts behind the device's lock screen. -->
     <string name="settings_interface_lock_screen_art_title">Lock Screen Art</string>
     <!-- Setting subtitle. Explains what the switch does and warns that it takes over the lock
          screen wallpaper. "Home app" is the app the device shows when Home is pressed. -->
     <string name="settings_interface_lock_screen_art_subtitle">While Argosy is your home app, the lock screen shows your library, or the game you left running. Replaces your lock screen wallpaper for good.</string>
+    <!-- Setting title. Whether Android lists Argosy among the apps it can use as the home screen.
+         "Home app" is the app the device shows when Home is pressed. -->
+    <string name="settings_interface_home_app_title">Available as Home App</string>
+    <!-- Second line of that row while the switch can be changed. -->
+    <string name="settings_interface_home_app_subtitle">Lets Android offer Argosy as your home screen. Samsung DeX only opens Argosy while this is off.</string>
+    <!-- Value shown in place of the switch while Argosy is the device's home app. Adjective. -->
+    <string name="settings_interface_home_app_locked_value">On</string>
+    <!-- Second line of that row while Argosy is the device's home app and the switch is locked. -->
+    <string name="settings_interface_home_app_locked_subtitle">Argosy is your home app. Choose another home app in Android settings to turn this off.</string>
 
     <!-- Row title. Noun: the time of day shown in the status bar. -->
     <string name="settings_interface_status_clock_title">Clock</string>
@@ -314,6 +343,15 @@
     <string name="settings_interface_status_network_title">Network</string>
     <!-- Second line of that row. Wi-Fi, Ethernet and mobile data each get their own icon. -->
     <string name="settings_interface_status_network_subtitle">Show the current connection in the status bar</string>
+    <!-- Row title. Noun phrase: a short summary of the last play session, shown just before a
+         game starts. -->
+    <string name="settings_interface_pre_launch_recaps_title">Pre-launch Recaps</string>
+    <!-- Second line of that row. RetroAchievements is a product name and stays untranslated. -->
+    <string name="settings_interface_pre_launch_recaps_subtitle">Before a RetroAchievements game you have not played for a week, show where you left off</string>
+    <!-- Row title. Noun phrase: a summary of the previous calendar month of play. -->
+    <string name="settings_interface_monthly_recap_title">Monthly Recap</string>
+    <!-- Second line of that row. -->
+    <string name="settings_interface_monthly_recap_subtitle">At the start of each month, show a summary of last month on Home</string>
     <!-- Row opening the settings for handhelds with a clip-on grip. Noun phrase. -->
     <string name="settings_interface_controller_grip_title">Controller Grip</string>
     <!-- Second line of that row. -->
@@ -350,6 +388,10 @@
     <string name="settings_navigation_quick_navigation_title">Quick Navigation</string>
     <!-- Switch subtitle explaining what the shoulder buttons and triggers do in each state. -->
     <string name="settings_navigation_quick_navigation_subtitle">Shoulder buttons move between pages with the nav bar. When off, they switch platforms and tabs, and the triggers jump between letters</string>
+    <!-- Switch title. On, the floating nav bar slides away a few seconds after it appears; off, it stays on screen. "Hide" is a verb. -->
+    <string name="settings_navigation_nav_bar_auto_hide_title">Auto-Hide Nav Bar</string>
+    <!-- Switch subtitle. "Button hints" are the strip along the bottom edge showing which controller button does what. -->
+    <string name="settings_navigation_nav_bar_auto_hide_subtitle">Slide the nav bar away after a few seconds so button hints take its place. When off, it stays on screen</string>
     <!-- Value of that row: pages turned on, then total pages. %1$d and %2$d are whole numbers, shown as "7 / 11". -->
     <string name="settings_navigation_nav_bar_pages_count">%1$d / %2$d</string>
     <!-- Title of the dialog listing every page with an on/off state and an order. Noun phrase. -->
@@ -516,6 +558,83 @@
     <string name="settings_displays_screens_title">Screen Layout</string>
     <!-- Second line of that row. -->
     <string name="settings_displays_screens_subtitle">Give each attached screen a job</string>
+
+    <!-- Heading over the rows choosing which screen games and apps open on. Noun phrase,
+         "target" as in destination. -->
+    <string name="settings_displays_section_display_targets">Display Targets</string>
+    <!-- Row title: the screen games open on unless a platform or game says otherwise. Noun,
+         plural. -->
+    <string name="settings_displays_games_target_title">Games</string>
+    <!-- Row title: the screen other apps open on unless an app says otherwise. Noun, plural. -->
+    <string name="settings_displays_apps_target_title">Apps</string>
+    <!-- Value of those rows. %1$s is a screen role name (Primary, Presentation, App Screen);
+         %2$d is the number drawn on that screen. -->
+    <string name="settings_displays_launch_target_value">%1$s (Screen %2$d)</string>
+    <!-- Second line of those rows when the chosen role is held by no screen. %1$s is the screen
+         used instead, e.g. "Presentation (Screen 2)". -->
+    <string name="settings_displays_launch_target_no_app_screen">No screen is the App Screen. Opens on %1$s.</string>
+    <!-- Row opening the per-platform and per-app screen choices. -->
+    <string name="settings_displays_by_platform_and_app_title">By Platform and App</string>
+    <!-- Second line of that row when no platform or app has its own screen. -->
+    <string name="settings_displays_by_platform_and_app_none">Everything follows these defaults</string>
+    <!-- Second line of that row: how many platforms and apps have their own screen. -->
+    <plurals name="settings_displays_by_platform_and_app_count">
+        <item quantity="one">%d set individually</item>
+        <item quantity="other">%d set individually</item>
+    </plurals>
+
+    <!-- Title of the screen listing every platform and app with the screen it opens on. Noun
+         phrase, "target" as in destination. -->
+    <string name="settings_launch_targets_title">Display Targets</string>
+    <!-- Line at the top of that screen explaining how the list is grouped. -->
+    <string name="settings_launch_targets_intro">Grouped by the screen each one opens on now.</string>
+    <!-- Side rail entry naming one screen group. %1$s is a screen role name (Primary,
+         Presentation, App Screen); %2$d is the number drawn on that screen. -->
+    <string name="settings_launch_targets_rail">%1$s (Screen %2$d)</string>
+    <!-- Spoken description of a screen group heading. %1$d is the number drawn on the screen;
+         %2$s is its role name. -->
+    <string name="settings_launch_targets_heading_description">Screen %1$d, %2$s</string>
+    <!-- Tag on the heading of the screen showing these settings. -->
+    <string name="settings_launch_targets_this_screen">This screen</string>
+    <!-- Label over the platforms in a screen group. Noun, plural. Shown in capitals. -->
+    <string name="settings_launch_targets_platforms">Platforms</string>
+    <!-- Label over the apps in a screen group. Noun, plural. Shown in capitals. -->
+    <string name="settings_launch_targets_apps">Apps</string>
+    <!-- Tag on a row that follows the global default screen. Adjective sense: the default one. -->
+    <string name="settings_launch_targets_tag_default">Default</string>
+    <!-- Tag on a row given its own screen. Past participle: chosen individually. -->
+    <string name="settings_launch_targets_tag_set">Set</string>
+    <!-- Second line of a platform row given its own screen. %1$s is a screen role name; the
+         platform follows that role wherever it moves. -->
+    <string name="settings_launch_targets_platform_set">Stays with %1$s</string>
+    <!-- Second line of an app row pinned to one screen. %1$d is the number drawn on that screen. -->
+    <string name="settings_launch_targets_app_set">Stays on Screen %1$d</string>
+    <!-- Second line of an app row pinned to a screen that is not connected now. -->
+    <string name="settings_launch_targets_app_missing">Its screen is not attached</string>
+    <!-- Second line of an app row pinned to a screen switched off in the screen layout. %1$d is
+         the number drawn on that screen. -->
+    <string name="settings_launch_targets_app_off">Screen %1$d is off</string>
+    <!-- Second line of a platform row when some of its games have their own screen. -->
+    <plurals name="settings_launch_targets_platform_game_overrides">
+        <item quantity="one">%d game set individually</item>
+        <item quantity="other">%d games set individually</item>
+    </plurals>
+    <!-- Line under a screen heading when nothing opens on that screen. -->
+    <string name="settings_launch_targets_empty">Nothing opens here</string>
+    <!-- Line under a screen heading while the installed apps are still being read. -->
+    <string name="settings_launch_targets_loading_apps">Finding apps</string>
+    <!-- First option in a platform's screen picker. %1$s is the role name the default sends
+         games to. -->
+    <string name="settings_launch_targets_use_default_role">Use default (%1$s)</string>
+    <!-- First option in an app's screen picker. %1$d is the number of the screen the default
+         sends apps to. -->
+    <string name="settings_launch_targets_use_default_screen">Use default (Screen %1$d)</string>
+    <!-- Option in a platform's screen picker. %1$s is a role name; %2$d is the number of the
+         screen holding it now. -->
+    <string name="settings_launch_targets_option_role">%1$s (Screen %2$d)</string>
+    <!-- Option in an app's screen picker. %1$d is a screen number; %2$s is the role it holds
+         now. -->
+    <string name="settings_launch_targets_option_screen">Screen %1$d (%2$s)</string>
     <!-- Row opening the settings for how the second screen draws the game focused on the first. -->
     <string name="settings_interface_presentation_title">Presentation</string>
     <!-- Second line of that row. -->
@@ -525,6 +644,8 @@
     <string name="settings_interface_section_general">General</string>
     <string name="settings_interface_section_screens">Screens</string>
     <string name="settings_interface_section_status_bar">Status Bar</string>
+    <!-- Group heading for the settings that show a summary of past play. Noun, plural. -->
+    <string name="settings_interface_section_recaps">Recaps</string>
 
     <!-- Row choosing how the presentation screen arranges the focused game. -->
     <string name="settings_presentation_layout_title">Layout</string>
@@ -546,6 +667,8 @@
     <string name="settings_presentation_scrim_none">None</string>
     <!-- Row setting how dark that shade is at its darkest, in percent. -->
     <string name="settings_presentation_scrim_strength_title">Shade Strength</string>
+    <!-- Row setting how strongly the game's background art is blurred behind a gradient shade. -->
+    <string name="settings_presentation_background_blur_title">Background Blur</string>
     <!-- Row choosing the artwork drawn beside the game's details. -->
     <string name="settings_presentation_art_title">Cover Art</string>
     <!-- Values of that row: the flat cover, the cover drawn as a 3D box, or the title alone. -->
@@ -585,7 +708,7 @@
     <!-- Role name: the screen that other apps are sent to. -->
     <string name="settings_screens_role_app_target">App Screen</string>
     <!-- Its one-line explanation. -->
-    <string name="settings_screens_role_app_target_detail">Apps you launch open here</string>
+    <string name="settings_screens_role_app_target_detail">Games and apps sent here open here, with no launcher</string>
     <!-- Role name: the screen Argosy leaves alone. -->
     <string name="settings_screens_role_off">Off</string>
     <!-- Its one-line explanation. -->
@@ -869,6 +992,51 @@
     <string name="settings_ra_logout_title_busy">Logging out...</string>
     <!-- Second line of that row. -->
     <string name="settings_ra_logout_subtitle">Sign out of RetroAchievements</string>
+
+    <!-- Row title. "Web API Key" is the name RetroAchievements gives this key on its site. -->
+    <string name="settings_ra_web_api_key_title">Web API Key (optional)</string>
+    <!-- Second line of that row: where the key is found and what it does. -->
+    <string name="settings_ra_web_api_key_subtitle">Find it in the Keys section of your RetroAchievements control panel. Makes recaps faster and richer.</string>
+    <!-- Trailing value of that row when no key is stored. -->
+    <string name="settings_ra_web_api_key_value_not_set">Not set</string>
+    <string name="settings_ra_web_api_key_value_saved" translatable="false">****%1$s</string>
+    <!-- Trailing value when a key is stored but too short to show its end. Adjective. -->
+    <string name="settings_ra_web_api_key_value_saved_short">Saved</string>
+    <!-- Trailing value when RetroAchievements answered that the stored key is not valid. The key
+         stays stored until the player replaces or clears it. -->
+    <string name="settings_ra_web_api_key_value_rejected">Key rejected</string>
+    <!-- Title of the key entry dialog. -->
+    <string name="settings_ra_web_api_key_modal_title">RetroAchievements Web API Key</string>
+    <!-- Body of the key entry dialog. -->
+    <string name="settings_ra_web_api_key_modal_message">Copy the Web API Key from the Keys section of your RetroAchievements control panel and paste it here. Argosy checks it once before saving.</string>
+    <!-- Label of the key text field. -->
+    <string name="settings_ra_web_api_key_field_label">Web API Key</string>
+    <!-- Button. Verb: paste the clipboard text into the key field. -->
+    <string name="settings_ra_web_api_key_paste">Paste</string>
+    <!-- Button. Verb: remove the stored key. -->
+    <string name="settings_ra_web_api_key_clear">Clear</string>
+    <!-- Button. Verb: close the dialog without changes. -->
+    <string name="settings_ra_web_api_key_cancel">Cancel</string>
+    <!-- Button. Verb: check the key and store it. -->
+    <string name="settings_ra_web_api_key_save">Save</string>
+    <!-- The same button while the key is being checked. -->
+    <string name="settings_ra_web_api_key_save_busy">Checking...</string>
+    <!-- Status line while the key is being checked. -->
+    <string name="settings_ra_web_api_key_status_validating">Checking the key with RetroAchievements...</string>
+    <!-- Status line when RetroAchievements refuses the key. -->
+    <string name="settings_ra_web_api_key_status_rejected">RetroAchievements did not accept this key.</string>
+    <!-- Status line when the check could not reach RetroAchievements. -->
+    <string name="settings_ra_web_api_key_status_unreachable">Could not reach RetroAchievements. Try again.</string>
+    <!-- Status line when Paste finds no text on the clipboard. -->
+    <string name="settings_ra_web_api_key_status_clipboard_empty">The clipboard has no text to paste.</string>
+    <!-- Notification title after the key is checked and stored. -->
+    <string name="settings_ra_web_api_key_saved_title">Web API Key saved</string>
+    <!-- Notification line under that title. -->
+    <string name="settings_ra_web_api_key_saved_subtitle">Recaps now read RetroAchievements directly.</string>
+    <!-- Notification title after the key is removed. -->
+    <string name="settings_ra_web_api_key_cleared_title">Web API Key removed</string>
+    <!-- Notification line under that title. -->
+    <string name="settings_ra_web_api_key_cleared_subtitle">The key is no longer stored on this device.</string>
 
     <!-- Row title. Noun phrase: which mode a game starts in. -->
     <string name="settings_ra_play_mode_title">Play Mode Preference</string>
@@ -1207,8 +1375,8 @@
     <!-- Heading over the rows that add extra drawing on top of that shape. Noun, plural. -->
     <string name="settings_backdrop_section_layers">Layers</string>
 
-    <!-- Row title. Noun phrase: the pattern drawn behind panels. -->
-    <string name="settings_backdrop_enabled_title">Surface Backdrop</string>
+    <!-- Row title. Noun phrase: the pattern drawn behind full screens. -->
+    <string name="settings_backdrop_enabled_title">Backdrop</string>
     <!-- Second line of that row. "Companion screen" is the second display. -->
     <string name="settings_backdrop_enabled_subtitle">Tiled pattern behind menus and the companion screen</string>
 
@@ -2564,12 +2732,17 @@
     <!-- Row opening the picture and sound settings. "A/V" is short for audio and video. -->
     <string name="settings_builtin_video_title">A/V &amp; Performance</string>
     <!-- Second line of that row, listing what is inside. "Shader" is a picture filter. -->
-    <string name="settings_builtin_video_subtitle">Shaders, display, performance, saving</string>
+    <string name="settings_builtin_video_subtitle">Shaders, display, performance</string>
     <!-- Row opening the input settings. Noun, plural. -->
     <string name="settings_builtin_controls_title">Controls</string>
     <!-- Second line of that row, listing what is inside. "Rumble" is controller vibration and a
          "hotkey" a button shortcut. -->
     <string name="settings_builtin_controls_subtitle">Rumble, input mapping, hotkeys</string>
+    <!-- Row opening the save settings. "Saves" is a noun, plural: saved games, not the verb. -->
+    <string name="settings_builtin_saves_title">Saves</string>
+    <!-- Second line of that row, listing what is inside. A "save state" is a snapshot of the
+         running game; "folders" are where save files and save states are stored. -->
+    <string name="settings_builtin_saves_subtitle">Save states, server saves, folders</string>
 
     <!-- Row opening the list of emulation engines. Verb phrase. -->
     <string name="settings_builtin_cores_title">Manage Cores</string>
@@ -3050,6 +3223,9 @@
     <string name="settings_platform_display_target_title">Display Target</string>
     <!-- Value of that row: send the game wherever games normally go. -->
     <string name="settings_platform_display_target_default">Default</string>
+    <!-- Value of that row when the platform follows the global Games setting. %1$s is the screen
+         that setting names, e.g. "Presentation Screen". -->
+    <string name="settings_platform_display_target_default_resolved">Default (%1$s)</string>
     <!-- Value of that row: the screen holding the Presentation role. -->
     <string name="settings_platform_display_target_presentation">Presentation Screen</string>
     <!-- Value of that row: the screen holding the Primary role. -->
@@ -3069,11 +3245,15 @@
     <!-- Row opening this console's picture and sound overrides. "A/V" is audio and video. -->
     <string name="settings_platform_builtin_video_title">Built-in A/V &amp; Performance</string>
     <!-- Second line of that row. -->
-    <string name="settings_platform_builtin_video_subtitle">Display, performance, and saving overrides</string>
+    <string name="settings_platform_builtin_video_subtitle">Display and performance overrides</string>
     <!-- Row opening this console's input overrides. Noun, plural. -->
     <string name="settings_platform_builtin_controls_title">Built-in Controls</string>
     <!-- Second line of that row. "Rumble" is controller vibration. -->
     <string name="settings_platform_builtin_controls_subtitle">Rumble, stick mapping overrides</string>
+    <!-- Row opening this console's save overrides. "Saves" is a noun, plural: saved games. -->
+    <string name="settings_platform_builtin_saves_title">Built-in Saves</string>
+    <!-- Second line of that row. A "save state" is a snapshot of the running game. -->
+    <string name="settings_platform_builtin_saves_subtitle">Save state and folder overrides</string>
     <!-- Row opening the engine's own settings. Noun phrase, plural. -->
     <string name="settings_platform_core_options_title">Core Options</string>
     <!-- Second line of that row. -->
@@ -3268,12 +3448,11 @@
 
     <!-- ===== GameNative folders panel ===== -->
 
-    <!-- Heading of the panel naming a folder for each store. "GameNative" is another app's
-         name. -->
-    <string name="settings_gamenative_folders_title">GameNative Folders</string>
-    <!-- Line under that heading. "Frontend Sync" is that app's own setting name and "Steam" a
-         store's; leave both untranslated. -->
-    <string name="settings_gamenative_folders_subtitle">Point each store at the folder GameNative exports its installs to. Steam markers only mark owned games as installed; the other stores add and remove their games to match.</string>
+    <!-- Heading of the panel naming the folder each launcher exports its installed games to. -->
+    <string name="settings_gamenative_folders_title">Launcher Sync Folders</string>
+    <!-- Line under that heading. "GameNative" and "DroidDeck" are other apps' names and "Steam" a
+         store's; leave them untranslated. -->
+    <string name="settings_gamenative_folders_subtitle">Point each store at the folder GameNative exports its installs to, and DroidDeck at its game files folder. Steam markers only mark owned games as installed; the other stores add and remove their games to match.</string>
     <!-- Footer hint on that panel. Two verbs joined by a slash: the directions either choose a
          folder or forget one. -->
     <string name="settings_gamenative_folders_hint_set">Set / Clear</string>
@@ -3875,6 +4054,10 @@
     <!-- Subtitle prefix on an installed emulator row with no pending update. The installed
          version, if known, is appended after a dash by code, not part of this string. -->
     <string name="settings_emulator_picker_installed_label">Installed</string>
+    <!-- Subtitle on the built-in emulator row. %1$s is the libretro core it runs for this
+         platform (an upstream name, never translated), %2$s the date and time that core build was
+         published. "build" is a noun: the compiled release of the core. -->
+    <string name="settings_emulator_picker_builtin_core_build">%1$s (build %2$s)</string>
     <!-- Heading over emulators available to install but not yet installed. Rendered in caps in
          English; use whatever casing suits a heading in your language. -->
     <string name="settings_emulator_picker_download_header">AVAILABLE TO DOWNLOAD</string>
@@ -4045,21 +4228,19 @@
 
     <!-- Modal title. Noun phrase: assigning controllers to player ports. -->
     <string name="settings_controller_order_title">Controller Order</string>
-    <!-- Modal subtitle. -->
-    <string name="settings_controller_order_subtitle">Press any button to assign a controller</string>
-    <!-- Footer hint. A commits the current assignments. -->
-    <string name="settings_controller_order_hint_confirm">Confirm</string>
-    <!-- Footer hint. B on an assigned slot clears it; on an empty slot it dismisses the
-         modal. -->
-    <string name="settings_controller_order_hint_unregister_back">Unregister/Back</string>
+    <!-- Modal subtitle. Each connected controller has a row; pressing a button on a controller
+         moves the highlight to that controller's row. -->
+    <string name="settings_controller_order_subtitle">Press a button on any controller to find it.</string>
+    <!-- Footer hint. Removes every controller's player seat. -->
+    <string name="settings_controller_order_hint_clear_all">Clear all</string>
     <!-- Fallback name for a controller that reports no name of its own. -->
     <string name="settings_controller_order_default_name">Controller</string>
-    <!-- Label under a player-port slot. %1$d is the port number (1-4). -->
+    <!-- Seat option for a player port. %1$d is the port number (1-4). -->
     <string name="settings_controller_order_slot_label">P%1$d</string>
-    <!-- Shown under the active slot while waiting for a controller button press. -->
-    <string name="settings_controller_order_slot_pressing">Press...</string>
-    <!-- Shown under a slot with no controller assigned. -->
-    <string name="settings_controller_order_slot_empty">Empty</string>
+    <!-- Seat option meaning the controller plays as no player. -->
+    <string name="settings_controller_order_seat_none">None</string>
+    <!-- Shown in place of the rows when no controller is connected. -->
+    <string name="settings_controller_order_empty">No controllers connected</string>
 
     <!-- ===== Grip controller modal (Settings > components > GripControllerModal) =====
          "Grip" is a controller attachment that clips onto the device; the UI shifts to make
@@ -4749,6 +4930,10 @@
     <string name="settings_play_time_section_what">WHAT YOU PLAY</string>
     <!-- Heading over the grid of single-number readings. Caps in English. -->
     <string name="settings_play_time_section_facts">QUICK FACTS</string>
+    <!-- Row on the play time screen that opens the card summing up the previous calendar month. -->
+    <string name="settings_play_time_last_month_title">Last Month\'s Recap</string>
+    <!-- Second line of that row. -->
+    <string name="settings_play_time_last_month_subtitle">Play time, new favorites and achievements from last month</string>
     <!-- Heading over the server rows. Product name, never translated. -->
     <string name="settings_play_time_section_romm" translatable="false">ROMM</string>
 
@@ -4932,4 +5117,56 @@
     <string name="settings_play_time_platforms_list_empty">No platform has play yet.</string>
     <string name="settings_play_time_devices_list_empty">No device has play yet.</string>
     <string name="settings_play_time_games_list_empty">No game has play yet.</string>
+
+    <!-- ===== Built-in Video: Graphics rows ===== -->
+
+    <!-- Group heading above the Backend and GPU Driver rows in the built-in emulator video
+         settings. Noun: rendering, not artwork. -->
+    <string name="settings_builtin_graphics_header">Graphics</string>
+    <!-- Row title. Noun: the renderer the emulator core draws with (for example OpenGL or
+         Vulkan). -->
+    <string name="settings_builtin_graphics_backend_title">Backend</string>
+    <!-- Second line of the Backend row when the value is the core's own option. %1$s is the
+         emulator core's name, never translated. The value is shared by every platform that runs
+         that core. -->
+    <string name="settings_builtin_graphics_backend_core_subtitle">%1$s option, shared by every platform using it</string>
+    <!-- Second line of the Backend row when the value is kept for this platform only. %1$s is
+         the emulator core's name, never translated. -->
+    <string name="settings_builtin_graphics_backend_platform_subtitle">Renderer %1$s uses on this platform</string>
+    <!-- Graphics API names. Never translated. -->
+    <string name="settings_builtin_graphics_api_opengl" translatable="false">OpenGL</string>
+    <string name="settings_builtin_graphics_api_vulkan" translatable="false">Vulkan</string>
+    <!-- Row title. Noun phrase: the Vulkan graphics driver the built-in cores load. -->
+    <string name="settings_builtin_gpu_driver_title">GPU Driver</string>
+    <!-- Second line of the GPU Driver row in the global context. -->
+    <string name="settings_builtin_gpu_driver_subtitle">Vulkan driver for built-in cores</string>
+    <!-- Second line of the GPU Driver row when this platform overrides it. %1$s is the global
+         value. -->
+    <string name="settings_builtin_gpu_driver_global_hint">Global: %1$s</string>
+    <!-- Value: the driver that ships with the device. -->
+    <string name="settings_builtin_gpu_driver_system">System Driver</string>
+    <!-- Value when the chosen custom driver is no longer installed, so the device's own driver
+         runs instead. -->
+    <string name="settings_builtin_gpu_driver_missing">Missing Driver (System in Use)</string>
+    <!-- A driver name followed by its version. -->
+    <string name="settings_builtin_gpu_driver_named_version" translatable="false">%1$s (%2$s)</string>
+    <!-- Entry in the GPU Driver list. %1$s is a downloaded driver package file name, never
+         translated. Verb. -->
+    <string name="settings_builtin_gpu_driver_install">Install %1$s</string>
+    <!-- Second line while a driver package unpacks. %1$s is the package file name. -->
+    <string name="settings_builtin_gpu_driver_installing">Installing %1$s...</string>
+    <!-- Notification after a driver installs. %1$s is the driver's name. -->
+    <string name="settings_builtin_gpu_driver_installed">Installed %1$s</string>
+    <!-- Notification when a driver package cannot be unpacked. %1$s is the package file name. -->
+    <string name="settings_builtin_gpu_driver_install_failed">Couldn\'t install %1$s</string>
+    <!-- Second line of a read-only GPU Driver row. %1$s is the emulator core's name, never
+         translated. -->
+    <string name="settings_builtin_gpu_driver_reason_core_unsupported">Not supported by %1$s</string>
+    <!-- Second line of a read-only GPU Driver row for a core that always runs on the device's own
+         Vulkan driver. %1$s is the emulator core's name, never translated. -->
+    <string name="settings_builtin_gpu_driver_reason_core_system_only">%1$s uses the system driver</string>
+    <!-- Second line of a read-only GPU Driver row while the Backend row is not set to Vulkan. -->
+    <string name="settings_builtin_gpu_driver_reason_backend">Applies when Backend is Vulkan</string>
+    <!-- Second line of a read-only GPU Driver row on a device that cannot load custom drivers. -->
+    <string name="settings_builtin_gpu_driver_reason_device">Custom drivers need an Adreno GPU</string>
 </resources>

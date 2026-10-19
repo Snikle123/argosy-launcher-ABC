@@ -93,18 +93,30 @@
     <string name="settings_theme_accent_footer_subtitle">फ़ुटर बैकग्राउंड के लिए एक्सेंट कलर का उपयोग करें</string>
     <string name="settings_theme_tint_bleed_title">सरफ़ेस टिंट</string>
 
-    <string name="settings_theme_backdrop_title">सरफ़ेस बैकड्रॉप</string>
+    <string name="settings_theme_backdrop_title">बैकड्रॉप</string>
     <string name="settings_theme_backdrop_subtitle_off">बंद</string>
     <string name="settings_theme_fonts_title">फ़ॉन्ट</string>
     <string name="settings_theme_fonts_subtitle_default">डिफ़ॉल्ट</string>
+    <string name="settings_theme_icon_pack_title">आइकन पैक</string>
+    <string name="settings_theme_icon_pack_subtitle">ऐप आइकन को इंस्टॉल किए गए आइकन पैक से बदलें</string>
+    <string name="settings_theme_icon_pack_subtitle_none">कोई आइकन पैक इंस्टॉल नहीं है</string>
+    <string name="settings_theme_icon_pack_system">सिस्टम आइकन</string>
 
     <!-- ===== Interface section ===== -->
 
     <string name="settings_interface_ui_scale_title">UI स्केल</string>
     <string name="settings_interface_compact_footer_title">कॉम्पैक्ट फ़ुटर</string>
     <string name="settings_interface_compact_footer_subtitle">पतली कंट्रोल गाइड बार का उपयोग करें</string>
+    <string name="settings_interface_hide_system_nav_bar_title">सिस्टम नेविगेशन बार छिपाएँ</string>
+    <string name="settings_interface_hide_system_nav_bar_subtitle">Android के बैक, होम और हाल के ऐप्स बटन या जेस्चर बार छिपाता है। दिखाने के लिए किनारे से स्वाइप करें</string>
+    <string name="settings_interface_hide_system_status_bar_title">सिस्टम स्टेटस बार छिपाएँ</string>
+    <string name="settings_interface_hide_system_status_bar_subtitle">Android का स्टेटस बार और सूचना आइकन छिपाता है। दिखाने के लिए ऊपर से नीचे स्वाइप करें</string>
     <string name="settings_interface_lock_screen_art_title">लॉक स्क्रीन चित्र</string>
     <string name="settings_interface_lock_screen_art_subtitle">जब Argosy आपका होम ऐप हो, लॉक स्क्रीन पर आपकी लाइब्रेरी या चालू छोड़ा गया गेम दिखता है। यह आपके लॉक स्क्रीन वॉलपेपर की जगह हमेशा के लिए ले लेता है।</string>
+    <string name="settings_interface_home_app_title">होम ऐप के रूप में उपलब्ध</string>
+    <string name="settings_interface_home_app_subtitle">Android को Argosy को आपकी होम स्क्रीन के रूप में पेश करने देता है। Samsung DeX में Argosy तभी खुलता है जब यह बंद हो।</string>
+    <string name="settings_interface_home_app_locked_value">चालू</string>
+    <string name="settings_interface_home_app_locked_subtitle">Argosy आपका होम ऐप है। इसे बंद करने के लिए Android सेटिंग्स में कोई दूसरा होम ऐप चुनें।</string>
     <string name="settings_interface_controller_grip_title">कंट्रोलर ग्रिप</string>
     <string name="settings_interface_controller_grip_subtitle">ग्रिप वाले हिस्से से UI को ऊपर खिसकाएँ</string>
     <string name="settings_interface_home_screen_title">होम स्क्रीन</string>
@@ -124,6 +136,8 @@
     <string name="settings_navigation_nav_bar_pages_subtitle">चुनें और क्रम तय करें कि नेविगेशन बार और शोल्डर बटन किन पेजों के बीच बदलें</string>
     <string name="settings_navigation_quick_navigation_title">क्विक नेविगेशन</string>
     <string name="settings_navigation_quick_navigation_subtitle">शोल्डर बटन नेविगेशन बार से पेज बदलते हैं। बंद होने पर वे प्लेटफ़ॉर्म और टैब बदलते हैं, और ट्रिगर अक्षरों के बीच जाते हैं</string>
+    <string name="settings_navigation_nav_bar_auto_hide_title">नेविगेशन बार अपने-आप छिपाएँ</string>
+    <string name="settings_navigation_nav_bar_auto_hide_subtitle">कुछ सेकंड बाद नेविगेशन बार छिप जाता है ताकि बटन संकेत उसकी जगह दिखें। बंद होने पर यह स्क्रीन पर बना रहता है</string>
     <string name="settings_navigation_nav_bar_pages_count">%1$d / %2$d</string>
     <string name="settings_nav_ring_modal_title">नेविगेशन बार पेज</string>
     <string name="settings_nav_ring_modal_subtitle">पेज चालू या बंद करें और उनका क्रम तय करें</string>
@@ -239,11 +253,46 @@
 
     <string name="settings_displays_screens_title">स्क्रीन व्यवस्था</string>
     <string name="settings_displays_screens_subtitle">हर जुड़ी स्क्रीन को एक काम सौंपें</string>
+    <string name="settings_displays_section_display_targets">डिस्प्ले टार्गेट</string>
+    <string name="settings_displays_games_target_title">गेम</string>
+    <string name="settings_displays_apps_target_title">ऐप</string>
+    <string name="settings_displays_launch_target_value">%1$s (स्क्रीन %2$d)</string>
+    <string name="settings_displays_launch_target_no_app_screen">कोई स्क्रीन ऐप स्क्रीन नहीं है। %1$s पर खुलेगा।</string>
+    <string name="settings_displays_by_platform_and_app_title">प्लेटफ़ॉर्म और ऐप के अनुसार</string>
+    <string name="settings_displays_by_platform_and_app_none">सब कुछ इन डिफ़ॉल्ट का पालन करता है</string>
+    <plurals name="settings_displays_by_platform_and_app_count">
+        <item quantity="one">%d अलग से सेट</item>
+        <item quantity="other">%d अलग से सेट</item>
+    </plurals>
+    <string name="settings_launch_targets_title">डिस्प्ले टार्गेट</string>
+    <string name="settings_launch_targets_intro">उस स्क्रीन के अनुसार समूहित जिस पर हर एक अभी खुलता है।</string>
+    <string name="settings_launch_targets_rail">%1$s (स्क्रीन %2$d)</string>
+    <string name="settings_launch_targets_heading_description">स्क्रीन %1$d, %2$s</string>
+    <string name="settings_launch_targets_this_screen">यह स्क्रीन</string>
+    <string name="settings_launch_targets_platforms">प्लेटफ़ॉर्म</string>
+    <string name="settings_launch_targets_apps">ऐप</string>
+    <string name="settings_launch_targets_tag_default">डिफ़ॉल्ट</string>
+    <string name="settings_launch_targets_tag_set">सेट</string>
+    <string name="settings_launch_targets_platform_set">%1$s के साथ रहता है</string>
+    <string name="settings_launch_targets_app_set">स्क्रीन %1$d पर रहता है</string>
+    <string name="settings_launch_targets_app_missing">इसकी स्क्रीन जुड़ी नहीं है</string>
+    <string name="settings_launch_targets_app_off">स्क्रीन %1$d बंद है</string>
+    <plurals name="settings_launch_targets_platform_game_overrides">
+        <item quantity="one">%d गेम अलग से सेट</item>
+        <item quantity="other">%d गेम अलग से सेट</item>
+    </plurals>
+    <string name="settings_launch_targets_empty">यहाँ कुछ नहीं खुलता</string>
+    <string name="settings_launch_targets_loading_apps">ऐप खोजे जा रहे हैं</string>
+    <string name="settings_launch_targets_use_default_role">डिफ़ॉल्ट उपयोग करें (%1$s)</string>
+    <string name="settings_launch_targets_use_default_screen">डिफ़ॉल्ट उपयोग करें (स्क्रीन %1$d)</string>
+    <string name="settings_launch_targets_option_role">%1$s (स्क्रीन %2$d)</string>
+    <string name="settings_launch_targets_option_screen">स्क्रीन %1$d (%2$s)</string>
     <string name="settings_interface_presentation_title">प्रस्तुति</string>
     <string name="settings_interface_presentation_subtitle">दूसरी स्क्रीन चुने गए गेम को कैसे दिखाए</string>
     <string name="settings_interface_section_general">सामान्य</string>
     <string name="settings_interface_section_screens">स्क्रीन</string>
     <string name="settings_interface_section_status_bar">स्टेटस बार</string>
+    <string name="settings_interface_section_recaps">रीकैप</string>
     <string name="settings_presentation_layout_title">लेआउट</string>
     <string name="settings_presentation_layout_cinematic">सिनेमैटिक</string>
     <string name="settings_presentation_layout_journal">जर्नल</string>
@@ -257,6 +306,7 @@
     <string name="settings_presentation_scrim_blur">धुंधला</string>
     <string name="settings_presentation_scrim_none">कोई नहीं</string>
     <string name="settings_presentation_scrim_strength_title">छाया की तीव्रता</string>
+    <string name="settings_presentation_background_blur_title">पृष्ठभूमि ब्लर</string>
     <string name="settings_presentation_art_title">कवर आर्ट</string>
     <string name="settings_presentation_art_cover">कवर</string>
     <string name="settings_presentation_art_box_3d">3D बॉक्स</string>
@@ -280,7 +330,7 @@
     <string name="settings_screens_role_presentation">प्रस्तुति</string>
     <string name="settings_screens_role_presentation_detail">आप जो देख रहे हैं वह दिखाती है, बिना नियंत्रण के</string>
     <string name="settings_screens_role_app_target">ऐप स्क्रीन</string>
-    <string name="settings_screens_role_app_target_detail">आपके शुरू किए ऐप यहीं खुलते हैं</string>
+    <string name="settings_screens_role_app_target_detail">यहाँ भेजे गए गेम और ऐप यहीं खुलते हैं, बिना लॉन्चर के</string>
     <string name="settings_screens_role_off">बंद</string>
     <string name="settings_screens_role_off_detail">Argosy इस स्क्रीन पर कुछ नहीं दिखाता</string>
     <string name="settings_displays_ambient_led_title">LED नियंत्रण</string>
@@ -316,6 +366,10 @@
     <string name="settings_interface_status_battery_subtitle">स्टेटस बार में बैटरी स्तर दिखाएँ</string>
     <string name="settings_interface_status_network_title">नेटवर्क</string>
     <string name="settings_interface_status_network_subtitle">स्टेटस बार में वर्तमान कनेक्शन दिखाएँ</string>
+    <string name="settings_interface_pre_launch_recaps_title">लॉन्च से पहले रीकैप</string>
+    <string name="settings_interface_pre_launch_recaps_subtitle">जिस RetroAchievements गेम को आपने एक हफ़्ते से नहीं खेला, उसे शुरू करने से पहले दिखाएँ कि आपने कहाँ छोड़ा था</string>
+    <string name="settings_interface_monthly_recap_title">मासिक रीकैप</string>
+    <string name="settings_interface_monthly_recap_subtitle">हर महीने की शुरुआत में होम पर पिछले महीने का सारांश दिखाएँ</string>
 
     <string name="settings_home_screen_background_title">बैकग्राउंड</string>
     <string name="settings_home_screen_background_subtitle">गेम आर्ट या बैकड्रॉप पैटर्न</string>
@@ -440,6 +494,27 @@
     <string name="settings_ra_logout_title">लॉगआउट</string>
     <string name="settings_ra_logout_title_busy">लॉगआउट हो रहा है...</string>
     <string name="settings_ra_logout_subtitle">RetroAchievements से साइन आउट करें</string>
+    <string name="settings_ra_web_api_key_title">वेब API की (वैकल्पिक)</string>
+    <string name="settings_ra_web_api_key_subtitle">यह आपके RetroAchievements कंट्रोल पैनल के Keys सेक्शन में मिलेगी। इससे रीकैप तेज़ और ज़्यादा विस्तृत होते हैं।</string>
+    <string name="settings_ra_web_api_key_value_not_set">सेट नहीं है</string>
+    <string name="settings_ra_web_api_key_value_saved_short">सेव है</string>
+    <string name="settings_ra_web_api_key_value_rejected">की अस्वीकार हुई</string>
+    <string name="settings_ra_web_api_key_modal_title">RetroAchievements वेब API की</string>
+    <string name="settings_ra_web_api_key_modal_message">अपने RetroAchievements कंट्रोल पैनल के Keys सेक्शन से वेब API की कॉपी करें और यहाँ पेस्ट करें। सेव करने से पहले Argosy इसे एक बार जाँचता है।</string>
+    <string name="settings_ra_web_api_key_field_label">वेब API की</string>
+    <string name="settings_ra_web_api_key_paste">पेस्ट करें</string>
+    <string name="settings_ra_web_api_key_clear">हटाएँ</string>
+    <string name="settings_ra_web_api_key_cancel">रद्द करें</string>
+    <string name="settings_ra_web_api_key_save">सेव करें</string>
+    <string name="settings_ra_web_api_key_save_busy">जाँच हो रही है...</string>
+    <string name="settings_ra_web_api_key_status_validating">RetroAchievements से की जाँची जा रही है...</string>
+    <string name="settings_ra_web_api_key_status_rejected">RetroAchievements ने यह की स्वीकार नहीं की।</string>
+    <string name="settings_ra_web_api_key_status_unreachable">RetroAchievements से संपर्क नहीं हो सका। फिर से कोशिश करें।</string>
+    <string name="settings_ra_web_api_key_status_clipboard_empty">क्लिपबोर्ड में पेस्ट करने के लिए कोई टेक्स्ट नहीं है।</string>
+    <string name="settings_ra_web_api_key_saved_title">वेब API की सेव हुई</string>
+    <string name="settings_ra_web_api_key_saved_subtitle">रीकैप अब RetroAchievements को सीधे पढ़ते हैं।</string>
+    <string name="settings_ra_web_api_key_cleared_title">वेब API की हटाई गई</string>
+    <string name="settings_ra_web_api_key_cleared_subtitle">यह की अब इस डिवाइस पर सेव नहीं है।</string>
 
     <string name="settings_ra_play_mode_title">प्ले मोड प्राथमिकता</string>
     <string name="settings_ra_play_mode_subtitle_locked">सिक्योर सेव आवश्यक है</string>
@@ -617,7 +692,7 @@
     <string name="settings_backdrop_section_pattern">पैटर्न</string>
     <string name="settings_backdrop_section_layers">लेयर</string>
 
-    <string name="settings_backdrop_enabled_title">सरफ़ेस बैकड्रॉप</string>
+    <string name="settings_backdrop_enabled_title">बैकड्रॉप</string>
     <string name="settings_backdrop_enabled_subtitle">मेनू और कम्पैनियन स्क्रीन के पीछे टाइल किया गया पैटर्न</string>
 
     <string name="settings_backdrop_preset_title">पैटर्न</string>
@@ -1347,9 +1422,11 @@
     <string name="settings_builtin_architecture_title">आर्किटेक्चर</string>
 
     <string name="settings_builtin_video_title">A/V और परफ़ॉर्मेंस</string>
-    <string name="settings_builtin_video_subtitle">शेडर, डिस्प्ले, परफ़ॉर्मेंस, सेविंग</string>
+    <string name="settings_builtin_video_subtitle">शेडर, डिस्प्ले, परफ़ॉर्मेंस</string>
     <string name="settings_builtin_controls_title">कंट्रोल्स</string>
     <string name="settings_builtin_controls_subtitle">रम्बल, इनपुट मैपिंग, हॉटकी</string>
+    <string name="settings_builtin_saves_title">सेव</string>
+    <string name="settings_builtin_saves_subtitle">सेव स्टेट, सर्वर सेव, फ़ोल्डर</string>
 
     <string name="settings_builtin_cores_title">कोर मैनेज करें</string>
     <string name="settings_builtin_cores_subtitle">%2$d में से %1$d कोर इंस्टॉल हैं</string>
@@ -1607,6 +1684,7 @@
     <string name="settings_platform_extension_default">डिफ़ॉल्ट</string>
     <string name="settings_platform_display_target_title">डिस्प्ले टार्गेट</string>
     <string name="settings_platform_display_target_default">डिफ़ॉल्ट</string>
+    <string name="settings_platform_display_target_default_resolved">डिफ़ॉल्ट (%1$s)</string>
     <string name="settings_platform_display_target_presentation">प्रस्तुति स्क्रीन</string>
     <string name="settings_platform_display_target_primary">प्राथमिक स्क्रीन</string>
     <string name="settings_platform_display_target_app_screen">ऐप स्क्रीन</string>
@@ -1615,9 +1693,11 @@
     <string name="settings_platform_launch_args_title">लॉन्च आर्ग्स</string>
     <string name="settings_platform_launch_args_subtitle">Argosy इस एमुलेटर को कैसे लॉन्च करता है, यह कस्टमाइज़ करें</string>
     <string name="settings_platform_builtin_video_title">बिल्ट-इन A/V और परफ़ॉर्मेंस</string>
-    <string name="settings_platform_builtin_video_subtitle">डिस्प्ले, परफ़ॉर्मेंस और सेविंग ओवरराइड</string>
+    <string name="settings_platform_builtin_video_subtitle">डिस्प्ले और परफ़ॉर्मेंस ओवरराइड</string>
     <string name="settings_platform_builtin_controls_title">बिल्ट-इन कंट्रोल्स</string>
     <string name="settings_platform_builtin_controls_subtitle">रम्बल, स्टिक मैपिंग ओवरराइड</string>
+    <string name="settings_platform_builtin_saves_title">बिल्ट-इन सेव</string>
+    <string name="settings_platform_builtin_saves_subtitle">सेव स्टेट और फ़ोल्डर ओवरराइड</string>
     <string name="settings_platform_core_options_title">कोर विकल्प</string>
     <string name="settings_platform_core_options_subtitle">इस प्लेटफ़ॉर्म के लिए प्रति-कोर सेटिंग्स</string>
 
@@ -1724,8 +1804,8 @@
 
     <!-- ===== GameNative folders panel ===== -->
 
-    <string name="settings_gamenative_folders_title">GameNative फ़ोल्डर</string>
-    <string name="settings_gamenative_folders_subtitle">हर स्टोर को उस फ़ोल्डर पर सेट करें जहाँ GameNative अपने इंस्टॉल एक्सपोर्ट करता है। Steam मार्कर केवल ओन किए गए गेम को इंस्टॉल्ड मार्क करते हैं; बाकी स्टोर अपने गेम मिलाने के लिए जोड़ते-हटाते हैं।</string>
+    <string name="settings_gamenative_folders_title">लॉन्चर सिंक फ़ोल्डर</string>
+    <string name="settings_gamenative_folders_subtitle">हर स्टोर को उस फ़ोल्डर पर सेट करें जहाँ GameNative अपने इंस्टॉल एक्सपोर्ट करता है, और DroidDeck को उसके गेम फ़ाइल फ़ोल्डर पर। Steam मार्कर केवल ओन किए गए गेम को इंस्टॉल्ड मार्क करते हैं; बाकी स्टोर अपने गेम मिलाने के लिए जोड़ते-हटाते हैं।</string>
     <string name="settings_gamenative_folders_hint_set">सेट / साफ़</string>
     <string name="settings_gamenative_folders_hint_select">चुनें</string>
     <string name="settings_gamenative_folders_hint_back">वापस</string>
@@ -2025,6 +2105,7 @@
     <string name="settings_emulator_picker_version_unknown">?</string>
     <string name="settings_emulator_picker_version_update_arrow">%1$s -&gt; %2$s</string>
     <string name="settings_emulator_picker_installed_label">इंस्टॉल्ड</string>
+    <string name="settings_emulator_picker_builtin_core_build">%1$s (बिल्ड %2$s)</string>
     <string name="settings_emulator_picker_download_header">डाउनलोड के लिए उपलब्ध</string>
     <string name="settings_emulator_picker_downloadable_downloading_progress">डाउनलोड हो रहा है %1$d%%</string>
     <string name="settings_emulator_picker_downloadable_installing">इंस्टॉल हो रहा है...</string>
@@ -2110,13 +2191,12 @@
     <!-- ===== Controller order modal (Settings > components > ControllerOrderModal) ===== -->
 
     <string name="settings_controller_order_title">कंट्रोलर क्रम</string>
-    <string name="settings_controller_order_subtitle">कंट्रोलर असाइन करने के लिए कोई भी बटन दबाएँ</string>
-    <string name="settings_controller_order_hint_confirm">पुष्टि करें</string>
-    <string name="settings_controller_order_hint_unregister_back">अनरजिस्टर/वापस</string>
+    <string name="settings_controller_order_subtitle">कंट्रोलर खोजने के लिए उस पर कोई बटन दबाएँ।</string>
+    <string name="settings_controller_order_hint_clear_all">सभी हटाएँ</string>
     <string name="settings_controller_order_default_name">कंट्रोलर</string>
     <string name="settings_controller_order_slot_label">P%1$d</string>
-    <string name="settings_controller_order_slot_pressing">दबाएँ...</string>
-    <string name="settings_controller_order_slot_empty">खाली</string>
+    <string name="settings_controller_order_seat_none">कोई नहीं</string>
+    <string name="settings_controller_order_empty">कोई कंट्रोलर कनेक्ट नहीं है</string>
 
     <!-- ===== Grip controller modal (Settings > components > GripControllerModal) ===== -->
 
@@ -2459,6 +2539,8 @@
     <string name="settings_play_time_section_where">डिवाइस</string>
     <string name="settings_play_time_section_what">आप क्या खेलते हैं</string>
     <string name="settings_play_time_section_facts">त्वरित तथ्य</string>
+    <string name="settings_play_time_last_month_title">पिछले महीने का रीकैप</string>
+    <string name="settings_play_time_last_month_subtitle">पिछले महीने का खेलने का समय, नए पसंदीदा और उपलब्धियाँ</string>
     <string name="settings_play_time_loading_title">सत्र पढ़े जा रहे हैं...</string>
     <string name="settings_play_time_loading_message">आपके खेलने के पैटर्न कुछ ही पल में दिखेंगे।</string>
     <string name="settings_play_time_empty_title">अभी कोई खेल सत्र नहीं</string>
@@ -2587,4 +2669,21 @@
     <string name="settings_play_time_devices_list_empty">अभी किसी डिवाइस पर खेल नहीं हुआ।</string>
     <string name="settings_play_time_games_list_empty">अभी कोई गेम नहीं खेला गया।</string>
 
+    <string name="settings_builtin_graphics_header">ग्राफ़िक्स</string>
+    <string name="settings_builtin_graphics_backend_title">बैकएंड</string>
+    <string name="settings_builtin_graphics_backend_core_subtitle">%1$s का विकल्प, इसे इस्तेमाल करने वाले हर प्लेटफ़ॉर्म पर लागू</string>
+    <string name="settings_builtin_graphics_backend_platform_subtitle">इस प्लेटफ़ॉर्म पर %1$s का रेंडरर</string>
+    <string name="settings_builtin_gpu_driver_title">GPU ड्राइवर</string>
+    <string name="settings_builtin_gpu_driver_subtitle">बिल्ट-इन कोर के लिए Vulkan ड्राइवर</string>
+    <string name="settings_builtin_gpu_driver_global_hint">ग्लोबल: %1$s</string>
+    <string name="settings_builtin_gpu_driver_system">सिस्टम ड्राइवर</string>
+    <string name="settings_builtin_gpu_driver_missing">ड्राइवर नहीं मिला (सिस्टम ड्राइवर चालू)</string>
+    <string name="settings_builtin_gpu_driver_install">%1$s इंस्टॉल करें</string>
+    <string name="settings_builtin_gpu_driver_installing">%1$s इंस्टॉल हो रहा है...</string>
+    <string name="settings_builtin_gpu_driver_installed">%1$s इंस्टॉल हो गया</string>
+    <string name="settings_builtin_gpu_driver_install_failed">%1$s इंस्टॉल नहीं हो सका</string>
+    <string name="settings_builtin_gpu_driver_reason_core_unsupported">%1$s में समर्थित नहीं</string>
+    <string name="settings_builtin_gpu_driver_reason_core_system_only">%1$s सिस्टम ड्राइवर इस्तेमाल करता है</string>
+    <string name="settings_builtin_gpu_driver_reason_backend">बैकएंड Vulkan होने पर लागू होता है</string>
+    <string name="settings_builtin_gpu_driver_reason_device">कस्टम ड्राइवर के लिए Adreno GPU चाहिए</string>
 </resources>

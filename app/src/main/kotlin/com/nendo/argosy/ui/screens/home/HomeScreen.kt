@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -143,7 +144,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import com.nendo.argosy.ui.components.InputButton
 import com.nendo.argosy.ui.components.FooterHints
 import com.nendo.argosy.ui.components.FooterSpacer
-import com.nendo.argosy.ui.components.LocalFooterHost
+import com.nendo.argosy.ui.components.withNavBarClearance
 import com.nendo.argosy.ui.components.NEW_BADGE_TOP_OVERFLOW
 import com.nendo.argosy.ui.components.FooterVariant
 import com.nendo.argosy.ui.components.DiscPickerModal
@@ -184,6 +185,7 @@ fun HomeScreen(
     onNavigateToSettings: (String) -> Unit = {},
     onPlayMedia: (itemId: String, startOver: Boolean) -> Unit = { _, _ -> },
     onMediaSelect: (String) -> Unit = {},
+    videoPreviewBlocked: Boolean = false,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -203,7 +205,21 @@ fun HomeScreen(
     val isAutoGrid = uiState.layoutKind == HomeLayoutKind.AUTO_GRID
     val isCustomGrid = uiState.layoutKind == HomeLayoutKind.CUSTOM_GRID
     val quickNavigation by viewModel.quickNavigationEnabled.collectAsState()
-    val rowButtons = if (quickNavigation) InputButton.LT_RT else InputButton.LB_RB
+    val dockReorder by viewModel.dockReorder.collectAsState()
+    val dockIsRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val dockReorderInputHandler = remember(viewModel, dockIsRtl) {
+        viewModel.createDockReorderInputHandler(dockIsRtl)
+    }
+    LaunchedEffect(presentationShowsHints) {
+        if (!presentationShowsHints) viewModel.releaseAppBar()
+    }
+    com.nendo.argosy.ui.input.ModalInputEffect(
+        active = presentationShowsHints && dockReorder?.controller == true && uiState.appBarFocused,
+        handler = dockReorderInputHandler,
+        onInputLost = viewModel::cancelAppBarReorder
+    )
+    if (presentationShowsHints && dockReorder?.controller == true) com.nendo.argosy.ui.input.ModalPresenceEffect()
+    val rowButtons = if (presentationShowsHints || quickNavigation) InputButton.LT_RT else InputButton.LB_RB
     val scope = rememberCoroutineScope()
     val overflowScrollState = rememberScrollState()
     var overflowScrollEnabled by remember { mutableStateOf(false) }
@@ -217,7 +233,13 @@ fun HomeScreen(
     var videoPlayedForGameId by remember { mutableStateOf<Long?>(null) }
     val swipeThreshold = with(LocalDensity.current) { 50.dp.toPx() }
 
-    val currentOnDrawerToggle by rememberUpdatedState(onDrawerToggle)
+    val toggleDrawer: () -> Unit = remember(onDrawerToggle, viewModel) {
+        {
+            viewModel.dismissAppBarTools()
+            onDrawerToggle()
+        }
+    }
+    val currentOnDrawerToggle by rememberUpdatedState(toggleDrawer)
 
     LaunchedEffect(Unit) {
         snapshotFlow { Triple(uiState.focusedGameIndex, uiState.currentRow, uiState.currentItems.size) }
@@ -247,6 +269,7 @@ fun HomeScreen(
             )
         }.collect { (isScrolling, programmatic, layoutInfo) ->
             if (isScrolling && !programmatic) {
+                if (uiState.appBarFocused) viewModel.releaseAppBar()
                 val viewportStart = layoutInfo.viewportStartOffset
                 val visibleItems = layoutInfo.visibleItemsInfo
                 if (visibleItems.isNotEmpty()) {
@@ -301,12 +324,13 @@ fun HomeScreen(
     }
 
     val inputDispatcher = LocalInputDispatcher.current
-    val inputHandler = remember(onGameSelect, onDrawerToggle, isDefaultView) {
+    val inputHandler = remember(onGameSelect, toggleDrawer, isDefaultView, dockIsRtl) {
         viewModel.createInputHandler(
             isDefaultView = isDefaultView,
             onGameSelect = onGameSelect,
             onNavigateToDefault = onNavigateToDefault,
-            onDrawerToggle = onDrawerToggle,
+            onDrawerToggle = toggleDrawer,
+            dockIsRtl = dockIsRtl,
             onScrollOverflow = { direction ->
                 val canScroll = if (direction < 0) {
                     overflowScrollState.canScrollBackward
@@ -331,14 +355,20 @@ fun HomeScreen(
                 viewModel.refreshFavorites()
                 viewModel.refreshRecentGames()
                 viewModel.republishCompanionDetail()
+                viewModel.onHomeShown()
             }
+            if (event == Lifecycle.Event.ON_STOP) viewModel.cancelAppBarReorder()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         inputDispatcher.subscribeView(inputHandler, forRoute = Screen.ROUTE_HOME)
         viewModel.republishCompanionDetail()
+        viewModel.onHomeShown()
         onDispose {
+            viewModel.cancelAppBarReorder()
             lifecycleOwner.lifecycle.removeObserver(observer)
             viewModel.clearCompanionDetail()
+            viewModel.dismissAppBarTools()
+            viewModel.onHomeHidden()
         }
     }
 
@@ -437,36 +467,51 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(uiState.focusedGameIndex, uiState.focusedGame?.youtubeVideoId, uiState.videoWallpaperEnabled) {
-        viewModel.deactivateVideoPreview()
-        if (!uiState.videoWallpaperEnabled) return@LaunchedEffect
-        if (uiState.layoutKind != HomeLayoutKind.CAROUSEL) return@LaunchedEffect
-        val game = uiState.focusedGame ?: return@LaunchedEffect
-        val videoId = game.youtubeVideoId ?: return@LaunchedEffect
-        val shouldSkip = uiState.showGameMenu ||
-            uiState.discPickerState != null ||
-            suppressVideoPreview ||
-            videoPlayedForGameId == game.id
-        if (shouldSkip) {
-            return@LaunchedEffect
-        }
-        delay(uiState.videoWallpaperDelayMs)
-        val isResumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
-        val stillValid = isResumed &&
-            uiState.videoWallpaperEnabled &&
-            !suppressVideoPreview &&
-            uiState.discPickerState == null &&
-            videoPlayedForGameId != game.id
-        if (stillValid) {
-            videoPlayedForGameId = game.id
-            viewModel.startVideoPreviewLoading(videoId)
-        }
+    val dsmForFocus = com.nendo.argosy.DualScreenManagerHolder.instance
+    val focusPickerOpen by (
+        dsmForFocus?.focusPickerOpen
+            ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }
+        ).collectAsState()
+    val previewBlocked = videoPreviewBlocked || focusPickerOpen || uiState.showGameMenu ||
+        uiState.appDrawer != null || uiState.appBarMenu != null ||
+        uiState.showAddToCollectionModal || uiState.showCreateCollectionDialog ||
+        uiState.discPickerState != null || uiState.memcardPickerState != null ||
+        uiState.syncOverlayState != null || uiState.changelogEntry != null || siblingChoiceOpen ||
+        dockReorder != null
+    val currentPreviewBlocked by rememberUpdatedState(previewBlocked)
+
+    LaunchedEffect(
+        uiState.focusedGame?.id,
+        uiState.focusedGame?.youtubeVideoId,
+        uiState.videoWallpaperEnabled,
+        uiState.videoWallpaperDelayMs,
+        uiState.layoutKind,
+        previewBlocked,
+        suppressVideoPreview
+    ) {
+        scheduleHomeVideoPreview(
+            state = uiState,
+            blocked = previewBlocked,
+            suppressed = suppressVideoPreview,
+            alreadyPlayed = videoPlayedForGameId == uiState.focusedGame?.id,
+            canStart = { gameId ->
+                lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
+                    uiState.videoWallpaperEnabled && !currentPreviewBlocked &&
+                    !suppressVideoPreview && videoPlayedForGameId != gameId
+            },
+            deactivate = viewModel::deactivateVideoPreview,
+            start = { gameId, videoId ->
+                videoPlayedForGameId = gameId
+                viewModel.startVideoPreviewLoading(videoId)
+            }
+        )
     }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.dismissAppBarTools()
                     viewModel.deactivateVideoPreview()
                     videoPlayedForGameId = uiState.focusedGame?.id
                 }
@@ -671,7 +716,7 @@ fun HomeScreen(
                 }
             }
 
-            if (uiState.isVideoPreviewLoading || uiState.isVideoPreviewActive) {
+            if (!previewBlocked && (uiState.isVideoPreviewLoading || uiState.isVideoPreviewActive)) {
                 val videoAlpha by animateFloatAsState(
                     targetValue = if (uiState.isVideoPreviewActive) 1f else 0f,
                     animationSpec = tween(500),
@@ -686,8 +731,18 @@ fun HomeScreen(
                         YouTubeVideoPlayer(
                             videoId = videoId,
                             muted = uiState.muteVideoPreview,
-                            onReady = { viewModel.activateVideoPreview() },
-                            onError = { viewModel.cancelVideoPreviewLoading() }
+                            onReady = {
+                                viewModel.activateVideoPreview(
+                                    videoId,
+                                    currentPreviewBlocked,
+                                    lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+                                )
+                            },
+                            onError = {
+                                if (viewModel.uiState.value.videoPreviewId == videoId) {
+                                    viewModel.cancelVideoPreviewLoading()
+                                }
+                            }
                         )
                     }
                 }
@@ -702,7 +757,7 @@ fun HomeScreen(
             val footerHeight = if (presentationShowsHints) {
                 dockHeight + chromeVerticalPadding
             } else {
-                LocalFooterHost.current.measuredHeight
+                withNavBarClearance(Dimens.footerHeight)
             }
             val edge = if (maxWidth.value < ComponentDefaults.Carousel.compactWidthDp) {
                 Dimens.spacingMd
@@ -814,11 +869,18 @@ fun HomeScreen(
                                         ?: (cell == grid.cell)
                                     when {
                                         grid.isEditing -> viewModel.moveEditingTileTo(cell)
+                                        uiState.appBarFocused -> {
+                                            viewModel.releaseAppBar()
+                                            viewModel.setCustomGridCell(cell)
+                                        }
                                         onFocused -> inputHandler.onConfirm()
                                         else -> viewModel.setCustomGridCell(cell)
                                     }
                                 },
-                                onSwipePage = { delta -> viewModel.turnCustomGridPage(delta) },
+                                onSwipePage = { delta ->
+                                    viewModel.releaseAppBar()
+                                    viewModel.turnCustomGridPage(delta)
+                                },
                                 onTileDrag = { cell -> viewModel.moveEditingTileTo(cell) },
                                 onTileResize = { cell -> viewModel.resizeEditingTileTo(cell) },
                                 onToggleEditMode = { viewModel.toggleTileEditMode() },
@@ -833,11 +895,18 @@ fun HomeScreen(
                                 onAddPage = { viewModel.confirmAddPage() },
                                 onHiddenTilesTap = viewModel::openHiddenCustomGridTiles,
                                 onTileLongPress = { cell ->
+                                    viewModel.releaseAppBar()
                                     viewModel.setCustomGridCell(cell)
                                     viewModel.openTileMenu()
                                 },
-                                onBadgeTap = { index -> viewModel.engageRaTileAt(index) },
-                                onBandTap = { inputHandler.onConfirm() },
+                                onBadgeTap = { index ->
+                                    viewModel.releaseAppBar()
+                                    viewModel.engageRaTileAt(index)
+                                },
+                                onBandTap = {
+                                    viewModel.releaseAppBar()
+                                    inputHandler.onConfirm()
+                                },
                                 downloadIndicatorFor = {
                                     downloadIndicators.value[it] ?: GameDownloadIndicator.NONE
                                 },
@@ -883,6 +952,7 @@ fun HomeScreen(
                                 ),
                                 focusedIndex = uiState.focusedGameIndex,
                                 config = uiState.autoGridConfig,
+                                showFocusVisuals = !uiState.appBarFocused,
                                 useBoxArt = uiState.boxArt3d,
                                 gridState = gridState,
                                 entryAnimationKey = (uiState.currentPlatform?.id ?: uiState.currentRow)
@@ -929,6 +999,7 @@ fun HomeScreen(
                                 },
                                 focusedIndex = uiState.focusedGameIndex,
                                 listState = listState,
+                                showFocusVisuals = !uiState.appBarFocused,
                                 availableWidth = availableCarouselWidth,
                                 verticalContentPadding = railTop,
                                 metrics = CarouselMetrics.hero(
@@ -959,7 +1030,33 @@ fun HomeScreen(
                 }
 
                 val focusedGame = uiState.focusedGame
-                if (isCustomGrid) {
+                if (dockReorder?.controller == true) {
+                    FooterHints(
+                        hints = com.nendo.argosy.ui.components.liftedReorderHints(
+                            move = stringResource(R.string.dock_hint_move),
+                            cancel = stringResource(R.string.dock_hint_cancel),
+                            moveButton = InputButton.DPAD_HORIZONTAL
+                        ),
+                        forced = true,
+                        onHintClick = { button ->
+                            when (button) {
+                                InputButton.A -> dockReorderInputHandler.onConfirm()
+                                InputButton.B -> dockReorderInputHandler.onBack()
+                                else -> Unit
+                            }
+                        }
+                    )
+                    FooterSpacer()
+                } else if (uiState.appBarFocused) {
+                    if (uiState.appBarIndex in uiState.homeApps.indices) {
+                        FooterHints(
+                            forced = true,
+                            hints = listOf(InputButton.A to stringResource(R.string.dock_hint_options)),
+                            onHintClick = { if (it == InputButton.A) viewModel.openDockAppMenu() }
+                        )
+                        FooterSpacer()
+                    }
+                } else if (isCustomGrid) {
                     val grid = uiState.customGrid
                     val gridPageLabel = stringResource(R.string.home_footer_grid_page)
                     val gridFinishedLabel = stringResource(R.string.home_footer_grid_finished)
@@ -1165,7 +1262,7 @@ fun HomeScreen(
                                 rowButtons to
                                     stringResource(R.string.home_footer_viewall_section)
                             } else {
-                                InputButton.DPAD_VERTICAL to
+                                (if (presentationShowsHints) rowButtons else InputButton.DPAD_VERTICAL) to
                                     stringResource(R.string.home_footer_viewall_platform)
                             },
                             InputButton.A to stringResource(R.string.home_footer_viewall_library)
@@ -1219,7 +1316,7 @@ fun HomeScreen(
                         HomeTitleSection(
                             game = game,
                             title = title,
-                            developer = game?.developer ?: uiState.focusedMedia?.subtitle,
+                            subtitle = if (game == null) uiState.focusedMedia?.subtitle else null,
                             friends = uiState.friendsFor(game),
                             maxWidth = titleWidth,
                             centered = geometry.titleAbove,
@@ -1266,18 +1363,13 @@ fun HomeScreen(
                 showStatus = !presentationShowsHints &&
                     (!isPortrait || com.nendo.argosy.ui.components.LocalTransientHomeStatusVisible.current),
                 onNavigationWidthChanged = { navigationPillWidth = it },
-                horizontalPadding = headerHorizontalPadding,
-                verticalPadding = chromeVerticalPadding,
+                edgePadding = ComponentDefaults.Carousel.headerEdgePaddingDp.dp,
+                bottomPadding = chromeVerticalPadding,
                 headerOffset = videoModeHeaderOffset,
                 showSections = !isCustomGrid
             )
         }
 
-        val dsmForFocus = com.nendo.argosy.DualScreenManagerHolder.instance
-        val focusPickerOpen by (
-            dsmForFocus?.focusPickerOpen
-                ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) }
-            ).collectAsState()
         val focusPickerIndex by (
             dsmForFocus?.focusPickerIndex
                 ?: remember { kotlinx.coroutines.flow.MutableStateFlow(0) }
@@ -1292,19 +1384,18 @@ fun HomeScreen(
             com.nendo.argosy.ui.components.CompanionAppBar(
                 apps = uiState.homeApps,
                 onAppClick = { viewModel.launchTileApp(it) },
+                reorder = dockReorder,
+                onReorderStart = { com.nendo.argosy.DualScreenManagerHolder.instance?.beginDockReorder(it, false) },
+                onReorderTarget = { token, target -> com.nendo.argosy.DualScreenManagerHolder.instance?.targetDockReorder(token, target) },
+                onReorderSave = { com.nendo.argosy.DualScreenManagerHolder.instance?.saveDockReorder(it) },
+                onReorderCancel = { com.nendo.argosy.DualScreenManagerHolder.instance?.cancelDockReorder(it) },
+                onAppHold = { viewModel.openDockAppMenuFor(it) },
                 focusedIndex = if (uiState.appBarFocused) {
                     uiState.appBarIndex
                 } else {
                     com.nendo.argosy.ui.components.APP_BAR_NOTHING_FOCUSED
                 },
                 onOpenDrawer = { viewModel.openAppDrawer() },
-                onAppLongPress = { packageName ->
-                    val index = uiState.homeApps.indexOf(packageName)
-                    if (index >= 0) {
-                        viewModel.moveAppBarFocus(index - uiState.appBarIndex)
-                        viewModel.openAppBarAppMenu()
-                    }
-                },
                 onKeyboardToggle = {
                     com.nendo.argosy.DualScreenManagerHolder.instance?.toggleUpperKeyboard()
                 },
@@ -1329,7 +1420,12 @@ fun HomeScreen(
                 onToolsDismiss = viewModel::dismissAppBarTools,
                 maximumWidth = navigationPillWidth.takeIf { it > 0.dp } ?: Dimens.breadcrumbMaxWidth,
                 modifier = Modifier.align(Alignment.BottomCenter)
-                    .padding(horizontal = Dimens.spacingMd, vertical = chromeVerticalPadding)
+                    .padding(
+                        start = Dimens.spacingMd,
+                        top = chromeVerticalPadding,
+                        end = Dimens.spacingMd,
+                        bottom = ComponentDefaults.Carousel.headerEdgePaddingDp.dp
+                    )
                     .onSizeChanged { size ->
                         val measured = with(localDensity) { size.height.toDp() }
                         if (measured != dockHeight) dockHeight = measured
@@ -1416,6 +1512,10 @@ fun HomeScreen(
                         viewModel.toggleGameMenu()
                         viewModel.removeFromHome(focusedGame.id)
                     },
+                    onRemoveFromLibrary = {
+                        viewModel.toggleGameMenu()
+                        viewModel.removeFromLibrary(focusedGame.id)
+                    },
                     onHide = {
                         viewModel.toggleGameMenu()
                         viewModel.hideGame(focusedGame.id)
@@ -1468,7 +1568,8 @@ fun HomeScreen(
                 entries = if (grid.menuListsHidden) {
                     grid.hiddenTiles.map { uiState.tileContentFor(it, context)?.label ?: hiddenFallback }
                 } else {
-                    grid.menuActions.map { context.getString(it.labelRes) }
+                    grid.menuScreens.map { context.getString(grid.menuScreenLabelRes, it.number) } +
+                        grid.menuActions.map { context.getString(it.labelRes) }
                 },
                 focusIndex = uiState.customGrid.menuFocusIndex,
                 onSelect = { index ->
@@ -1679,8 +1780,8 @@ private fun HomeHeader(
     isStacked: Boolean,
     showStatus: Boolean,
     onNavigationWidthChanged: (Dp) -> Unit,
-    horizontalPadding: Dp,
-    verticalPadding: Dp,
+    edgePadding: Dp,
+    bottomPadding: Dp,
     headerOffset: androidx.compose.ui.unit.Dp = 0.dp,
     showSections: Boolean = true
 ) {
@@ -1693,7 +1794,7 @@ private fun HomeHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalPadding, vertical = verticalPadding)
+                .padding(start = edgePadding, top = edgePadding, end = edgePadding, bottom = bottomPadding)
                 .offset(y = headerOffset),
             horizontalArrangement = if (isStacked) Arrangement.Center else Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
@@ -1707,7 +1808,7 @@ private fun HomeHeader(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = horizontalPadding, vertical = verticalPadding)
+                .padding(start = edgePadding, top = edgePadding, end = edgePadding, bottom = bottomPadding)
                 .offset(y = headerOffset),
             verticalArrangement = Arrangement.spacedBy(Dimens.spacingSm)
         ) {
@@ -1735,7 +1836,7 @@ private fun HomeHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding, vertical = verticalPadding)
+            .padding(start = edgePadding, top = edgePadding, end = edgePadding, bottom = bottomPadding)
             .offset(y = headerOffset),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1947,6 +2048,7 @@ private fun GameSelectOverlay(
     onResyncPlatform: () -> Unit,
     onDelete: () -> Unit,
     onRemoveFromHome: () -> Unit,
+    onRemoveFromLibrary: () -> Unit,
     onHide: () -> Unit
 ) {
     val primaryIcon = when {
@@ -1973,6 +2075,7 @@ private fun GameSelectOverlay(
     val resyncPlatformLabel = stringResource(R.string.home_quick_actions_resync_platform)
     val deleteDownloadLabel = stringResource(R.string.home_quick_actions_delete_download)
     val removeFromHomeLabel = stringResource(R.string.home_quick_actions_remove_from_home)
+    val removeFromLibraryLabel = stringResource(R.string.home_quick_actions_remove_from_library)
     val hideLabel = stringResource(R.string.home_quick_actions_hide)
 
     data class MenuEntry(
@@ -2038,6 +2141,16 @@ private fun GameSelectOverlay(
                     removeFromHomeLabel,
                     isDangerous = true,
                     onClick = onRemoveFromHome
+                )
+            )
+        }
+        if (game.canRemoveFromLibrary) {
+            add(
+                MenuEntry(
+                    Icons.Default.RemoveCircleOutline,
+                    removeFromLibraryLabel,
+                    isDangerous = true,
+                    onClick = onRemoveFromLibrary
                 )
             )
         }

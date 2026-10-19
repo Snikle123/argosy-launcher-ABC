@@ -24,12 +24,14 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.nendo.argosy.R
 import com.nendo.argosy.data.platform.PlatformWeightRegistry
+import com.nendo.argosy.data.repository.ControllerInfo
 import com.nendo.argosy.data.repository.MappingPlatforms
 import com.nendo.argosy.libretro.LibretroCoreRegistry
 import com.nendo.argosy.libretro.coreoptions.CoreControlManifestRegistry
 import com.nendo.argosy.ui.components.CyclePreference
 import com.nendo.argosy.ui.components.NavigationPreference
 import com.nendo.argosy.ui.components.SwitchPreference
+import com.nendo.argosy.ui.input.LocalInputDispatcher
 import com.nendo.argosy.ui.screens.gamedetail.components.OptionItem
 import com.nendo.argosy.ui.screens.settings.BuiltinControlsState
 import com.nendo.argosy.ui.screens.settings.SettingsUiState
@@ -178,7 +180,6 @@ fun BuiltinControlsSection(
 ) {
     val controlsState = uiState.builtinControls
     val context = LocalContext.current
-    val controllerOrder by viewModel.getControllerOrder().collectAsState(initial = emptyList())
     val hotkeys by viewModel.observeHotkeys().collectAsState(initial = emptyList())
 
     val videoState = uiState.builtinVideo
@@ -256,11 +257,11 @@ fun BuiltinControlsSection(
                 BuiltinControlsItem.ControllerOrder -> NavigationPreference(
                     icon = Icons.Default.SortByAlpha,
                     title = stringResource(R.string.settings_builtin_controls_order_title),
-                    subtitle = if (controllerOrder.isNotEmpty()) {
+                    subtitle = if (controlsState.controllerOrderCount > 0) {
                         pluralStringResource(
                             R.plurals.settings_builtin_controls_order_assigned,
-                            controllerOrder.size,
-                            controllerOrder.size
+                            controlsState.controllerOrderCount,
+                            controlsState.controllerOrderCount
                         )
                     } else {
                         stringResource(R.string.settings_builtin_controls_order_subtitle)
@@ -509,21 +510,25 @@ fun BuiltinControlsSection(
 
         if (controlsState.showControllerOrderModal) {
             ControllerOrderModal(
-                existingOrder = controllerOrder,
-                onAssign = { port, device -> viewModel.assignControllerToPort(port, device) },
-                onClearAll = { viewModel.clearControllerOrder() },
+                controller = viewModel.controllerSeats,
                 onDismiss = { viewModel.hideControllerOrderModal() }
             )
         }
 
         if (controlsState.showInputMappingModal) {
+            val controllers by viewModel.connectedControllers.collectAsState()
+            val activeController by viewModel.activeController.collectAsState()
+            val lockedPlatformIndex = if (!isGlobal && platformSlug != null) {
+                MappingPlatforms.indexForPlatformSlug(platformSlug)
+            } else {
+                null
+            }
             InputMappingModal(
-                controllers = viewModel.getConnectedControllers(),
-                lockedPlatformIndex = if (!isGlobal && platformSlug != null) {
-                    MappingPlatforms.indexForPlatformSlug(platformSlug)
-                } else {
-                    null
-                },
+                controllers = controllers,
+                activeController = activeController,
+                onHoldActiveController = viewModel::holdActiveController,
+                inputDispatcher = LocalInputDispatcher.current,
+                lockedPlatformIndexFor = lockedPlatformIndex?.let { index -> { _: ControllerInfo -> index } },
                 onGetMapping = { controller, platformId ->
                     viewModel.getControllerMapping(controller, platformId)
                 },

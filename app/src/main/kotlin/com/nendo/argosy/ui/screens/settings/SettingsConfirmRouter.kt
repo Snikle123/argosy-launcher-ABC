@@ -80,6 +80,7 @@ import com.nendo.argosy.ui.screens.settings.sections.steamMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.boxArtMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.builtinControlsMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.builtinVideoMaxFocusIndex
+import com.nendo.argosy.ui.screens.settings.sections.builtinSavesMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.navigationMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.displaysMaxFocusIndex
 import com.nendo.argosy.ui.screens.settings.sections.screensMaxFocusIndex
@@ -204,16 +205,21 @@ internal fun routeConfirm(vm: SettingsViewModel): InputResult {
                 }
             } else {
                 if (ra.isLoggedIn) {
+                    val pushIndex = raLoggedInPushIndex(ra.proxyEnabled)
                     when (state.focusedIndex) {
-                        0 -> vm.logoutFromRA()
-                        1 -> {
+                        RA_LOGGED_IN_LOGOUT_INDEX -> vm.logoutFromRA()
+                        RA_LOGGED_IN_WEB_API_KEY_INDEX -> {
+                            vm.openRAWebApiKeyEditor()
+                            return InputResult.handled(SoundType.OPEN_MODAL)
+                        }
+                        RA_LOGGED_IN_PLAY_MODE_INDEX -> {
                             if (!state.syncSettings.secureSaves) return InputResult.HANDLED
                             vm.cycleRADefaultMode(1)
                             return InputResult.handled(SoundType.SELECT)
                         }
-                        2 -> vm.setRAProxyEnabled(!ra.proxyEnabled)
-                        3 -> if (ra.proxyEnabled) vm.raDelegate.setFocusField(3) else if (ra.canPushToRetroArch) vm.pushRACredentialsToRetroArch()
-                        4 -> if (ra.proxyEnabled && ra.canPushToRetroArch) vm.pushRACredentialsToRetroArch()
+                        RA_LOGGED_IN_PROXY_TOGGLE_INDEX -> vm.setRAProxyEnabled(!ra.proxyEnabled)
+                        pushIndex -> if (ra.canPushToRetroArch) vm.pushRACredentialsToRetroArch()
+                        RA_LOGGED_IN_PROXY_FIELD_INDEX -> if (ra.proxyEnabled) vm.raDelegate.setFocusField(RA_LOGGED_IN_PROXY_FIELD_INDEX)
                     }
                 } else {
                     when (state.focusedIndex) {
@@ -285,6 +291,11 @@ internal fun routeConfirm(vm: SettingsViewModel): InputResult {
             vm.openScreenRoleModal()
             InputResult.handled(SoundType.OPEN_MODAL)
         }
+        SettingsSection.LAUNCH_TARGETS -> if (vm.openLaunchTargetPicker()) {
+            InputResult.handled(SoundType.OPEN_MODAL)
+        } else {
+            InputResult.handled(SoundType.SILENT)
+        }
         SettingsSection.NAVIGATION -> routeNavigationConfirm(vm, state)
         SettingsSection.PLATFORMS -> routeEmulatorsConfirm(vm, state)
         SettingsSection.BUILTIN_EMULATOR -> routeBuiltinEmulatorConfirm(vm, state)
@@ -295,10 +306,11 @@ internal fun routeConfirm(vm: SettingsViewModel): InputResult {
         SettingsSection.ABOUT -> routeAboutConfirm(vm, state)
         SettingsSection.BUILTIN_VIDEO -> InputResult.HANDLED
         SettingsSection.BUILTIN_CONTROLS -> InputResult.HANDLED
+        SettingsSection.BUILTIN_SAVES -> InputResult.HANDLED
         SettingsSection.SHADER_STACK -> InputResult.HANDLED
         SettingsSection.FRAME_PICKER -> routeFramePickerConfirm(vm, state)
         SettingsSection.CORE_MANAGEMENT -> {
-            vm.selectCoreForPlatform()
+            vm.confirmCoreManagement()
             InputResult.HANDLED
         }
         SettingsSection.CORE_OPTIONS -> InputResult.HANDLED
@@ -601,6 +613,10 @@ private fun routePlayTimeConfirm(vm: SettingsViewModel, state: SettingsUiState):
         PlayTimeItem.PlatformsTile -> vm.navigateToPlayTimePlatforms()
         PlayTimeItem.DevicesTile -> vm.navigateToPlayTimeDevices()
         PlayTimeItem.MosaicCard, PlayTimeItem.GamesTile -> vm.navigateToPlayTimeGames()
+        PlayTimeItem.LastMonthRecap -> {
+            vm.openLastMonthRecap()
+            return InputResult.handled(SoundType.OPEN_MODAL)
+        }
         PlayTimeItem.UploadNow -> {
             if (!isOnline || playTime.isUploading) return InputResult.handled(SoundType.SILENT)
             vm.uploadPlaySessionsNow()
@@ -714,10 +730,16 @@ private fun routeInterfaceConfirm(vm: SettingsViewModel, state: SettingsUiState)
             return InputResult.handled(SoundType.OPEN_MODAL)
         }
         InterfaceItem.CompactFooter -> vm.setCompactFooter(!state.display.compactFooter)
+        InterfaceItem.HideSystemNavigationBar ->
+            vm.setHideSystemNavigationBar(!state.display.hideSystemNavigationBar)
+        InterfaceItem.HideSystemStatusBar -> vm.setHideSystemStatusBar(!state.display.hideSystemStatusBar)
         InterfaceItem.LockScreenArt -> vm.setLockScreenArt(!state.display.lockScreenArt)
+        InterfaceItem.HomeApp -> vm.setHomeAppAvailable(!state.display.homeAppAvailable)
         InterfaceItem.StatusClock -> vm.setShowStatusClock(!state.display.showStatusClock)
         InterfaceItem.StatusBattery -> vm.setShowStatusBattery(!state.display.showStatusBattery)
         InterfaceItem.StatusNetwork -> vm.setShowStatusNetwork(!state.display.showStatusNetwork)
+        InterfaceItem.PreLaunchRecaps -> vm.setPreLaunchRecaps(!state.display.preLaunchRecaps)
+        InterfaceItem.MonthlyRecap -> vm.setMonthlyRecap(!state.display.monthlyRecap)
         InterfaceItem.ControllerGrip -> vm.navigateToControllerGrip()
         InterfaceItem.HomeScreen -> vm.navigateToHomeScreen()
         InterfaceItem.LibraryView -> vm.navigateToLibraryView()
@@ -744,6 +766,15 @@ private fun routeDisplaysConfirm(vm: SettingsViewModel, state: SettingsUiState):
         }
         DisplaysItem.ScreenLayout -> vm.navigateToScreens()
         DisplaysItem.AmbientLedSettings -> vm.navigateToAmbientLed()
+        DisplaysItem.GamesTarget -> {
+            vm.requestEnumPicker(DisplaysItem.GamesTarget.key)
+            return InputResult.handled(SoundType.OPEN_MODAL)
+        }
+        DisplaysItem.AppsTarget -> {
+            vm.requestEnumPicker(DisplaysItem.AppsTarget.key)
+            return InputResult.handled(SoundType.OPEN_MODAL)
+        }
+        DisplaysItem.ByPlatformAndApp -> vm.navigateToLaunchTargets()
         else -> {}
     }
     return InputResult.HANDLED
@@ -752,8 +783,8 @@ private fun routeDisplaysConfirm(vm: SettingsViewModel, state: SettingsUiState):
 private fun routePresentationConfirm(vm: SettingsViewModel, state: SettingsUiState): InputResult {
     val style = state.display.presentationStyle
     return when (val item = presentationItemAtFocusIndex(state.focusedIndex, style)) {
-        PresentationItem.Layout, PresentationItem.Scrim, PresentationItem.Art ->
-            InputResult.handled(SoundType.SILENT)
+        PresentationItem.Layout, PresentationItem.Scrim, PresentationItem.Art,
+        PresentationItem.BackgroundBlur -> InputResult.handled(SoundType.SILENT)
         is PresentationItem.Stat -> {
             vm.setPresentationStyle(style.withStat(item.stat, !style.shows(item.stat)))
             InputResult.handled(SoundType.TOGGLE)
@@ -778,6 +809,11 @@ private fun routeThemeConfirm(vm: SettingsViewModel, state: SettingsUiState): In
         ThemeItem.AccentFooter -> vm.setUseAccentColorFooter(!state.display.useAccentColorFooter)
         ThemeItem.Backdrop -> vm.navigateToThemeBackdrop()
         ThemeItem.Fonts -> vm.navigateToThemeFonts()
+        ThemeItem.IconPack -> {
+            if (state.display.iconPacks.isEmpty()) return InputResult.handled(SoundType.SILENT)
+            vm.requestEnumPicker(ThemeItem.IconPack.key)
+            return InputResult.handled(SoundType.OPEN_MODAL)
+        }
         else -> {}
     }
     return InputResult.HANDLED
@@ -1011,6 +1047,11 @@ private fun routeNavigationConfirm(vm: SettingsViewModel, state: SettingsUiState
             vm.setQuickNavigation(enabled)
             return InputResult.toggled(enabled)
         }
+        NavigationItem.NavBarAutoHide -> {
+            val autoHide = !state.controls.navBarAutoHide
+            vm.setNavBarAutoHide(autoHide)
+            return InputResult.toggled(autoHide)
+        }
         NavigationItem.NavBarPages -> {
             vm.showNavRingModal()
             return InputResult.handled(SoundType.OPEN_MODAL)
@@ -1220,6 +1261,7 @@ private fun routeDismissTopOverlay(vm: SettingsViewModel): Boolean {
         state.server.rommConfiguring -> { vm.cancelRommConfig(); true }
         state.jellyfin.configuring -> { vm.cancelJellyfinConfig(); true }
         state.jellyfin.showLoginForm -> { vm.hideJellyfinLoginForm(); true }
+        state.retroAchievements.webApiKeyEditor != null -> { vm.closeRAWebApiKeyEditor(); true }
         state.retroAchievements.showLoginForm -> { vm.hideRALoginForm(); true }
         state.currentSection == SettingsSection.PLATFORM_DETAIL && state.platformDetail.showRemoveConfirm -> {
             vm._uiState.update { it.copy(platformDetail = it.platformDetail.copy(showRemoveConfirm = false)) }; true
@@ -1268,17 +1310,26 @@ internal fun routeMoveFocus(vm: SettingsViewModel, delta: Int): Boolean {
         moved = newIndex != state.focusedIndex
         state.copy(focusedIndex = newIndex)
     }
-    if (vm._uiState.value.currentSection == SettingsSection.PLATFORMS) {
-        vm.emulatorDelegate.resetPlatformSubFocus()
-    }
-    if (vm._uiState.value.currentSection == SettingsSection.BIOS) {
-        vm.biosDelegate.resetPlatformSubFocus()
-        vm.biosDelegate.resetBiosPathActionFocus()
-    }
-    if (vm._uiState.value.currentSection == SettingsSection.ACCOUNTS) {
-        vm.accountsDelegate.resetRowActionFocus()
-    }
+    routeResetRowSubFocus(vm)
     return moved
+}
+
+internal fun routeTouchFocus(vm: SettingsViewModel, index: Int) {
+    val before = vm._uiState.value.focusedIndex
+    vm._uiState.update { it.touchFocused(index, routeMaxFocusIndexOf(vm, it)) }
+    if (vm._uiState.value.focusedIndex != before) routeResetRowSubFocus(vm)
+}
+
+private fun routeResetRowSubFocus(vm: SettingsViewModel) {
+    when (vm._uiState.value.currentSection) {
+        SettingsSection.PLATFORMS -> vm.emulatorDelegate.resetPlatformSubFocus()
+        SettingsSection.BIOS -> {
+            vm.biosDelegate.resetPlatformSubFocus()
+            vm.biosDelegate.resetBiosPathActionFocus()
+        }
+        SettingsSection.ACCOUNTS -> vm.accountsDelegate.resetRowActionFocus()
+        else -> Unit
+    }
 }
 
 /**
@@ -1315,10 +1366,10 @@ private fun computeMaxFocusIndex(
     }
     SettingsSection.RETRO_ACHIEVEMENTS -> when {
         state.retroAchievements.showLoginForm -> 3
-        state.retroAchievements.isLoggedIn -> {
-            val lastBeforePush = if (state.retroAchievements.proxyEnabled) 3 else 2
-            if (state.retroAchievements.canPushToRetroArch) lastBeforePush + 1 else lastBeforePush
-        }
+        state.retroAchievements.isLoggedIn -> raLoggedInMaxFocusIndex(
+            proxyEnabled = state.retroAchievements.proxyEnabled,
+            canPushToRetroArch = state.retroAchievements.canPushToRetroArch
+        )
         state.retroAchievements.proxyEnabled -> RA_PROXY_FIELD_INDEX
         else -> RA_PROXY_TOGGLE_INDEX
     }
@@ -1346,6 +1397,7 @@ private fun computeMaxFocusIndex(
     SettingsSection.DISPLAYS -> displaysMaxFocusIndex(DisplaysLayoutState.from(state))
     SettingsSection.AMBIENT_LED -> ambientLedMaxFocusIndex(state.display)
     SettingsSection.SCREENS -> screensMaxFocusIndex(state.display.screens)
+    SettingsSection.LAUNCH_TARGETS -> launchTargetsLayout(state.launchTargets).maxFocusIndex
     SettingsSection.NAVIGATION -> navigationMaxFocusIndex(state.controls)
     SettingsSection.MANAGED_INSTALLERS -> installersMaxFocusIndex(state.managedInstallers)
     SettingsSection.PLATFORMS -> emulatorsMaxFocusIndex(state.emulators.platforms)
@@ -1357,7 +1409,8 @@ private fun computeMaxFocusIndex(
     SettingsSection.PLATFORM_DETAIL -> platformDetailMaxFocusIndex(state)
     SettingsSection.BUILTIN_VIDEO -> builtinVideoMaxFocusIndex(state.builtinVideo, state.platformLibretro.platformSettings)
     SettingsSection.BUILTIN_CONTROLS -> builtinControlsMaxFocusIndex(state.builtinControls)
-    SettingsSection.CORE_MANAGEMENT -> coreManagementMaxFocusIndex(state.coreManagement.platforms)
+    SettingsSection.BUILTIN_SAVES -> builtinSavesMaxFocusIndex(state.builtinVideo, state.platformLibretro.platformSettings)
+    SettingsSection.CORE_MANAGEMENT -> coreManagementMaxFocusIndex(state.coreManagement)
     SettingsSection.CORE_OPTIONS -> com.nendo.argosy.ui.screens.settings.sections.coreOptionsMaxFocusIndex(state.coreOptions)
     SettingsSection.SHADER_STACK -> com.nendo.argosy.ui.screens.settings.sections.shaderStackMaxFocusIndex(vm.shaderChainManager.shaderStack)
     SettingsSection.FRAME_PICKER -> com.nendo.argosy.ui.screens.settings.sections.framePickerMaxFocusIndex(vm.getFrameRegistry())
@@ -1406,6 +1459,7 @@ private fun routePlatformDetailConfirm(vm: SettingsViewModel, state: SettingsUiS
         PlatformDetailItem.LaunchArgs -> vm.openLaunchArgsModal(config.platform.id)
         PlatformDetailItem.BuiltinVideo -> vm.navigateToBuiltinVideoForPlatform(state.platformDetail.platformIndex)
         PlatformDetailItem.BuiltinControls -> vm.navigateToBuiltinControlsForPlatform(state.platformDetail.platformIndex)
+        PlatformDetailItem.BuiltinSaves -> vm.navigateToBuiltinSavesForPlatform(state.platformDetail.platformIndex)
         PlatformDetailItem.BuiltinCoreOptions -> vm.navigateToCoreOptionsForPlatform()
         PlatformDetailItem.ClearArtCache -> vm.clearPlatformArtCache(config.platform.slug)
         PlatformDetailItem.ScanFiles -> vm.scanFilesForPlatform(config.platform.id)
@@ -1443,6 +1497,7 @@ private fun routeBuiltinEmulatorConfirm(vm: SettingsViewModel, state: SettingsUi
         BuiltinEmulatorItem.ARCHITECTURE, BuiltinEmulatorItem.HUD_CORNER -> return InputResult.handled(SoundType.SILENT)
         BuiltinEmulatorItem.VIDEO -> if (builtinEnabled) vm.navigateToBuiltinVideo()
         BuiltinEmulatorItem.CONTROLS -> if (builtinEnabled) vm.navigateToBuiltinControls()
+        BuiltinEmulatorItem.SAVES -> if (builtinEnabled) vm.navigateToBuiltinSaves()
         BuiltinEmulatorItem.CORE_MANAGEMENT -> if (builtinEnabled) vm.navigateToCoreManagement()
         BuiltinEmulatorItem.CORE_OPTIONS -> if (builtinEnabled) vm.navigateToCoreOptions()
         BuiltinEmulatorItem.TWO_COLUMN ->
